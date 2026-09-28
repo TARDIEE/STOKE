@@ -13,9 +13,25 @@ function client(): Client {
   if (url) {
     return createClient({ url, authToken: process.env.TURSO_AUTH_TOKEN });
   }
+  return createClient({ url: writableFileUrl() });
+}
+
+/** Local SQLite file. Vercel's filesystem is read-only except /tmp, so fall
+ *  back there instead of crashing (still ephemeral — set TURSO_* for real persistence). */
+function writableFileUrl(): string {
   const dir = path.join(process.cwd(), "data");
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  return createClient({ url: `file:${path.join(dir, "stoke.db")}` });
+  try {
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.accessSync(dir, fs.constants.W_OK);
+    return `file:${path.join(dir, "stoke.db")}`;
+  } catch {
+    return "file:/tmp/stoke.db";
+  }
+}
+
+/** Which database backend is in use (shown by /api/health). */
+export function dbKind(): "turso" | "file" {
+  return process.env.TURSO_DATABASE_URL ? "turso" : "file";
 }
 
 const globalForDb = globalThis as unknown as { __stokeClient?: Client };

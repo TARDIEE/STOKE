@@ -191,12 +191,17 @@ export function applyGrade(r: ReviewState, grade: Grade, now: number): ReviewSta
 }
 
 async function api(path: string, init?: RequestInit) {
-  const res = await fetch(path, {
-    headers: { "Content-Type": "application/json" },
-    ...init,
-  });
+  let res: Response;
+  try {
+    res = await fetch(path, {
+      headers: { "Content-Type": "application/json" },
+      ...init,
+    });
+  } catch {
+    throw new Error("Can't reach the server. Check your connection and reload.");
+  }
   const body = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(body?.error || "Request failed.");
+  if (!res.ok) throw new Error(body?.error || `Request failed (${res.status}).`);
   return body;
 }
 
