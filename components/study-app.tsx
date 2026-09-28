@@ -32,7 +32,7 @@ const NAV: { id: View; label: string; icon: string }[] = [
 const MOBILE_NAV: View[] = ["dashboard", "study", "reviews", "pomodoro", "settings"];
 
 export default function StudyApp() {
-  const { data, toasts, pushToast, authChecked, logout, setPomoLabel, pomoStart } = useStudy();
+  const { data, toasts, pushToast, authChecked, bootError, refresh, logout, setPomoLabel, pomoStart } = useStudy();
   const d = useDerived();
   useNow();
   const [view, setView] = useState<View>("dashboard");
@@ -84,7 +84,22 @@ export default function StudyApp() {
     );
   }
 
-  if (!data) return <AuthScreen />;
+  if (!data) {
+    // Server hiccup (not signed out)? Show retry instead of the login form.
+    if (bootError) {
+      return (
+        <div className="min-h-screen grid place-items-center p-4" style={{ background: "var(--bg)" }}>
+          <div className="card w-full max-w-sm p-6 text-center fade-in">
+            <div className="font-bold text-lg">Couldn&apos;t reach your study data</div>
+            <p className="text-sm mt-1" style={{ color: "var(--ink-2)" }}>{bootError}</p>
+            <button onClick={() => refresh().catch(() => {})} className="btn-primary w-full py-2.5 text-sm mt-4">Try again</button>
+            <button onClick={() => logout()} className="w-full py-2 text-xs font-semibold mt-2" style={{ color: "var(--ink-2)" }}>Back to sign in</button>
+          </div>
+        </div>
+      );
+    }
+    return <AuthScreen />;
+  }
 
   const startReview = (subjectId?: string | null, chapterId?: string | null) => {
     const now = Date.now();

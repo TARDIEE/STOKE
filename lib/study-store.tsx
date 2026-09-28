@@ -211,6 +211,8 @@ interface StudyCtx {
   data: Persisted | null;
   authChecked: boolean;
   authError: string | null;
+  bootError: string | null;
+  refresh: () => Promise<void>;
   register: (name: string, email: string, password: string) => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -291,6 +293,7 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
   const [data, setData] = useState<Persisted | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [bootError, setBootError] = useState<string | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
   // pomo runtime
   const [pomoMode, setPomoMode] = useState<PomoMode>("focus");
@@ -326,9 +329,31 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    bootstrap()
-      .catch(() => setData(null))
-      .finally(() => setAuthChecked(true));
+    let cancelled = false;
+    // Retry transient failures (cold starts, hiccups) — but a 401 means
+    // genuinely signed out, so stop immediately and show the login screen.
+    (async () => {
+      let lastErr: unknown = null;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          await bootstrap();
+          if (!cancelled) setBootError(null);
+          return;
+        } catch (e) {
+          lastErr = e;
+          if (e instanceof Error && e.message === "Not signed in.") break;
+          await new Promise((r) => setTimeout(r, 800 * (attempt + 1)));
+        }
+      }
+      if (!cancelled) {
+        if (lastErr instanceof Error && lastErr.message !== "Not signed in.") {
+          setBootError(lastErr.message);
+        }
+        setData(null);
+      }
+    })().finally(() => {
+      if (!cancelled) setAuthChecked(true);
+    });
     try {
       const raw = localStorage.getItem(POMO_KEY);
       if (raw) {
@@ -344,6 +369,7 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
         }
       }
     } catch { /* ignore */ }
+    return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -466,7 +492,16 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
   }, [pomoMode, modeSecs]);
 
   const value: StudyCtx = useMemo(() => ({
-    data, authChecked, authError,
+    data, authChecked, authError, bootError,
+    refresh: async () => {
+      setBootError(null);
+      try {
+        await bootstrap();
+      } catch (e) {
+        if (e instanceof Error && e.message !== "Not signed in.") setBootError(e.message);
+        throw e;
+      }
+    },
     register: async (name, email, password) => {
       setAuthError(null);
       try {
@@ -654,7 +689,7 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
     },
     setPomoContext: (s, c) => { setPomoSubjectId(s); setPomoChapterId(c); },
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [data, authChecked, authError, toasts, pushToast, fail, bootstrap, persistSession, pomoMode, pomoRunning, pomoRemaining, pomoTotal, pomoCycle, pomoSubjectId, pomoChapterId, pomoLabel, targetEnd, pomoStart, handleComplete]);
+  }), [data, authChecked, authError, bootError, toasts, pushToast, fail, bootstrap, persistSession, pomoMode, pomoRunning, pomoRemaining, pomoTotal, pomoCycle, pomoSubjectId, pomoChapterId, pomoLabel, targetEnd, pomoStart, handleComplete]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

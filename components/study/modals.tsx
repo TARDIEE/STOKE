@@ -226,7 +226,7 @@ export function ChapterModal({ subjectId, close }: { subjectId: string; close: (
 }
 
 export function Onboarding({ step, setStep }: { step: number; setStep: (n: number) => void }) {
-  const { data, updateUser, updatePomo, setOnboarded, addSubject, pushToast } = useStudy();
+  const { data, updateUser, updatePomo, setOnboarded, addSubject, pushToast, refresh } = useStudy();
   const [name, setName] = useState(data?.user.name && data.user.name !== "Student" ? data.user.name : "");
   const [nameError, setNameError] = useState<string | null>(null);
   const [picked, setPicked] = useState<string[]>([]);
@@ -253,9 +253,22 @@ export function Onboarding({ step, setStep }: { step: number; setStep: (n: numbe
         } catch { /* ignore */ }
       }
     }
+    // Persist onboarding BEFORE refreshing, so the fresh pull can't resurrect it.
+    try {
+      await fetch("/api/settings", {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user: { onboarded: true } }),
+      });
+    } catch { /* refresh below will retry */ }
     setOnboarded();
     pushToast({ title: `Let's make today count, ${name || data.user.name || "Student"}` });
-    window.location.reload();
+    // Re-pull fresh state (new syllabus included) instead of reloading the page,
+    // so a slow request can never strand the student on the login screen.
+    try {
+      await refresh();
+    } catch {
+      window.location.reload();
+    }
   };
   return (
     <div className="fixed inset-0 z-50 grid place-items-center p-4" role="dialog" aria-modal="true" aria-label="Onboarding">

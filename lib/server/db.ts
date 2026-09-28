@@ -182,6 +182,7 @@ export async function run(sql: string, ...args: unknown[]): Promise<void> {
 
 /** Run several writes atomically. */
 export async function batch(stmts: { sql: string; args: unknown[] }[]): Promise<void> {
+  if (!stmts.length) return;
   await migrate();
   await getDb().batch(
     stmts.map((s) => ({ sql: s.sql, args: s.args as (string | number | boolean | null)[] }))
