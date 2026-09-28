@@ -6,6 +6,15 @@ import { uid } from "@/lib/server/util";
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export async function POST(req: Request) {
+  try {
+    return await register(req);
+  } catch (e) {
+    console.error("register failed:", e);
+    return NextResponse.json({ error: `Server error: ${e instanceof Error ? e.message : "unknown"}` }, { status: 500 });
+  }
+}
+
+async function register(req: Request) {
   const body = await req.json().catch(() => null);
   const name = String(body?.name ?? "").trim();
   const email = String(body?.email ?? "").trim().toLowerCase();

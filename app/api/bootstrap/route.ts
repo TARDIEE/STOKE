@@ -5,15 +5,21 @@ import { currentUser, publicUser } from "@/lib/server/auth";
 const b = (v: unknown) => v === 1;
 
 export async function GET() {
-  const user = await currentUser();
-  if (!user) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
+  try {
+    const user = await currentUser();
+    if (!user) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
   const subjects = await q("SELECT * FROM subjects WHERE user_id = ? ORDER BY created_at", user.id);
   const chapters = await q("SELECT * FROM chapters WHERE user_id = ? ORDER BY ord, created_at", user.id);
   const cardRows = await q("SELECT * FROM cards WHERE user_id = ? ORDER BY created_at DESC", user.id);
   const reviewRows = await q("SELECT * FROM reviews WHERE user_id = ?", user.id);
   const logRows = await q("SELECT * FROM review_logs WHERE user_id = ? ORDER BY at DESC LIMIT 2000", user.id);
   const sessionRows = await q("SELECT * FROM study_sessions WHERE user_id = ? ORDER BY start DESC LIMIT 1000", user.id);
-  const pomo = (await q1("SELECT * FROM pomo_settings WHERE user_id = ?", user.id)) as Record<string, number>;
+  const pomoRow = (await q1("SELECT * FROM pomo_settings WHERE user_id = ?", user.id)) as Record<string, number> | undefined;
+  const pomo = {
+    focus_min: 25, short_min: 5, long_min: 15, sessions_before_long: 4,
+    auto_start_breaks: 0, auto_start_focus: 0, sound: 1, vibration: 0, notifications: 1,
+    ...pomoRow,
+  };
 
   return NextResponse.json({
     user: { ...publicUser(user), streakMinSessions: 1 },
@@ -47,4 +53,8 @@ export async function GET() {
       vibration: b(pomo.vibration), notifications: b(pomo.notifications),
     },
   });
+  } catch (e) {
+    console.error("bootstrap failed:", e);
+    return NextResponse.json({ error: `Server error: ${e instanceof Error ? e.message : "unknown"}` }, { status: 500 });
+  }
 }
