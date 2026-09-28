@@ -90,6 +90,7 @@ export default function StudyApp() {
       return (
         <div className="min-h-screen grid place-items-center p-4" style={{ background: "var(--bg)" }}>
           <div className="card w-full max-w-sm p-6 text-center fade-in">
+            <DbWarning />
             <div className="font-bold text-lg">Couldn&apos;t reach your study data</div>
             <p className="text-sm mt-1" style={{ color: "var(--ink-2)" }}>{bootError}</p>
             <button onClick={() => refresh().catch(() => {})} className="btn-primary w-full py-2.5 text-sm mt-4">Try again</button>
@@ -98,7 +99,12 @@ export default function StudyApp() {
         </div>
       );
     }
-    return <AuthScreen />;
+    return (
+      <>
+        <DbWarning />
+        <AuthScreen />
+      </>
+    );
   }
 
   const startReview = (subjectId?: string | null, chapterId?: string | null) => {
@@ -275,6 +281,30 @@ function StreakMini() {
         {Array.from({ length: 7 }).map((_, i) => (
           <div key={i} className="h-6 flex-1 rounded" style={{ background: on && i < Math.min(7, d.streak) ? "#7c3aed" : "var(--border)" }} />
         ))}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Shown on the sign-in screen when the server has no persistent database
+ * (Vercel without TURSO_* vars): every request can hit a different empty DB,
+ * which is exactly why sign-ups seem to "vanish" back to the login page.
+ */
+function DbWarning() {
+  const [show, setShow] = useState(false);
+  useEffect(() => {
+    fetch("/api/health")
+      .then((r) => r.json())
+      .then((b) => { if (b && b.ephemeral) setShow(true); })
+      .catch(() => {});
+  }, []);
+  if (!show) return null;
+  return (
+    <div className="max-w-xl mx-auto mt-3 px-4 md:px-8">
+      <div className="card p-3 text-xs" style={{ borderColor: "#EF4444" }}>
+        <b>⚠️ Server database not connected</b> — accounts and study data vanish between requests, which is why you keep landing back here.
+        Admin fix: add <code>TURSO_DATABASE_URL</code> + <code>TURSO_AUTH_TOKEN</code> in Vercel → Settings → Environment Variables, then redeploy.
       </div>
     </div>
   );

@@ -34,6 +34,15 @@ export function dbKind(): "turso" | "file" {
   return process.env.TURSO_DATABASE_URL ? "turso" : "file";
 }
 
+/**
+ * True when data cannot survive: serverless platforms (Vercel) wipe local
+ * files on every request, so each request can land on a different EMPTY
+ * database — logins die instantly. Admin fix: set TURSO_* env vars.
+ */
+export function isEphemeral(): boolean {
+  return !process.env.TURSO_DATABASE_URL && process.env.VERCEL === "1";
+}
+
 const globalForDb = globalThis as unknown as { __stokeClient?: Client };
 export function getDb(): Client {
   if (!globalForDb.__stokeClient) globalForDb.__stokeClient = client();
