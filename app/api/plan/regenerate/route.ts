@@ -8,8 +8,8 @@ export async function POST() {
   if (!user) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
   const now = Date.now();
   return NextResponse.json({
-    items: ensureTodayPlan(user.id, now, true),
-    tomorrow: tomorrowPreview(user.id, now),
-    studied: studiedToday(user.id),
+    items: await ensureTodayPlan(user.id, now, true),
+    tomorrow: await tomorrowPreview(user.id),
+    studied: await studiedToday(user.id),
   });
 }

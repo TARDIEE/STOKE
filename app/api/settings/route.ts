@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getDb } from "@/lib/server/db";
+import { run } from "@/lib/server/db";
 import { currentUser } from "@/lib/server/auth";
 
 const USER_FIELDS: Record<string, string> = {
@@ -24,7 +24,6 @@ export async function PATCH(req: Request) {
   const user = await currentUser();
   if (!user) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
   const body = await req.json().catch(() => ({}));
-  const db = getDb();
 
   if (body?.user && typeof body.user === "object") {
     const fields: string[] = [];
@@ -45,7 +44,7 @@ export async function PATCH(req: Request) {
     }
     if (fields.length) {
       vals.push(user.id);
-      db.prepare(`UPDATE users SET ${fields.join(", ")} WHERE id = ?`).run(...vals);
+      await run(`UPDATE users SET ${fields.join(", ")} WHERE id = ?`, ...vals);
     }
   }
 
@@ -60,7 +59,7 @@ export async function PATCH(req: Request) {
     }
     if (fields.length) {
       vals.push(user.id);
-      db.prepare(`UPDATE pomo_settings SET ${fields.join(", ")} WHERE user_id = ?`).run(...vals);
+      await run(`UPDATE pomo_settings SET ${fields.join(", ")} WHERE user_id = ?`, ...vals);
     }
   }
 

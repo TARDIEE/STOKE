@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getDb } from "@/lib/server/db";
+import { q, q1 } from "@/lib/server/db";
 import { currentUser, publicUser } from "@/lib/server/auth";
 
 const b = (v: unknown) => v === 1;
@@ -7,14 +7,13 @@ const b = (v: unknown) => v === 1;
 export async function GET() {
   const user = await currentUser();
   if (!user) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
-  const db = getDb();
-  const subjects = db.prepare("SELECT * FROM subjects WHERE user_id = ? ORDER BY created_at").all(user.id);
-  const chapters = db.prepare("SELECT * FROM chapters WHERE user_id = ? ORDER BY ord, created_at").all(user.id);
-  const cardRows = db.prepare("SELECT * FROM cards WHERE user_id = ? ORDER BY created_at DESC").all(user.id) as Record<string, unknown>[];
-  const reviewRows = db.prepare("SELECT * FROM reviews WHERE user_id = ?").all(user.id) as Record<string, unknown>[];
-  const logRows = db.prepare("SELECT * FROM review_logs WHERE user_id = ? ORDER BY at DESC LIMIT 2000").all(user.id);
-  const sessionRows = db.prepare("SELECT * FROM study_sessions WHERE user_id = ? ORDER BY start DESC LIMIT 1000").all(user.id);
-  const pomo = db.prepare("SELECT * FROM pomo_settings WHERE user_id = ?").get(user.id) as Record<string, number>;
+  const subjects = await q("SELECT * FROM subjects WHERE user_id = ? ORDER BY created_at", user.id);
+  const chapters = await q("SELECT * FROM chapters WHERE user_id = ? ORDER BY ord, created_at", user.id);
+  const cardRows = await q("SELECT * FROM cards WHERE user_id = ? ORDER BY created_at DESC", user.id);
+  const reviewRows = await q("SELECT * FROM reviews WHERE user_id = ?", user.id);
+  const logRows = await q("SELECT * FROM review_logs WHERE user_id = ? ORDER BY at DESC LIMIT 2000", user.id);
+  const sessionRows = await q("SELECT * FROM study_sessions WHERE user_id = ? ORDER BY start DESC LIMIT 1000", user.id);
+  const pomo = (await q1("SELECT * FROM pomo_settings WHERE user_id = ?", user.id)) as Record<string, number>;
 
   return NextResponse.json({
     user: { ...publicUser(user), streakMinSessions: 1 },

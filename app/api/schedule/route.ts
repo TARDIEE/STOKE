@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getDb } from "@/lib/server/db";
+import { q, q1 } from "@/lib/server/db";
 import { currentUser } from "@/lib/server/auth";
 import { dayKey, daysLeft, generateSchedule, listSchedule, missedCount } from "@/lib/server/schedule";
 
@@ -10,13 +10,12 @@ import { dayKey, daysLeft, generateSchedule, listSchedule, missedCount } from "@
 export async function GET(req: Request) {
   const user = await currentUser();
   if (!user) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
-  const db = getDb();
   const url = new URL(req.url);
   const now = Date.now();
 
-  const row = db.prepare("SELECT exam_id, exam_name, exam_date FROM users WHERE id = ?").get(user.id) as {
+  const row = await q1<{
     exam_id: string; exam_name: string; exam_date: number;
-  };
+  }>("SELECT exam_id, exam_name, exam_date FROM users WHERE id = ?", user.id);
   const exam = row?.exam_date ? { id: row.exam_id, name: row.exam_name, date: Number(row.exam_date), daysLeft: daysLeft(Number(row.exam_date), now) } : null;
 
   const monthParam = url.searchParams.get("month"); // YYYY-MM
@@ -24,8 +23,8 @@ export async function GET(req: Request) {
   const y = base.getFullYear(), mo = base.getMonth();
 
   // Auto-build the chapter plan the first time an exam with a date exists.
-  let items = listSchedule(user.id);
-  if (exam && items.length === 0) items = generateSchedule(user.id, now);
+  let items = await listSchedule(user.id);
+  if (exam && items.length === 0) items = await generateSchedule(user.id, now);
 
   if (url.searchParams.get("all") === "1") {
     const byDay: Record<string, typeof items> = {};
@@ -41,8 +40,8 @@ export async function GET(req: Request) {
   });
 
   // Per-day study activity for the heatmap.
-  const sessions = db.prepare("SELECT * FROM study_sessions WHERE user_id = ? AND kind = 'focus'").all(user.id) as Record<string, unknown>[];
-  const logs = db.prepare("SELECT at FROM review_logs WHERE user_id = ?").all(user.id) as { at: number }[];
+  const sessions = await q("SELECT * FROM study_sessions WHERE user_id = ? AND kind = 'focus'", user.id);
+  const logs = await q<{ at: number }>("SELECT at FROM review_logs WHERE user_id = ?", user.id);
   const perDay: Record<string, { sec: number; pomos: number; reviews: number }> = {};
   for (const s of sessions) {
     const k = dayKey(Number(s.start));
@@ -69,7 +68,7 @@ export async function GET(req: Request) {
     month: `${y}-${String(mo + 1).padStart(2, "0")}`,
     plan: byDay,
     perDay,
-    missed: missedCount(user.id, now),
+    missed: await missedCount(user.id, now),
     totalPlanned: items.length,
     totalDone: items.filter((i) => i.status === "done").length,
   });

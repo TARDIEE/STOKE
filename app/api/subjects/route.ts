@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getDb } from "@/lib/server/db";
+import { run } from "@/lib/server/db";
 import { currentUser } from "@/lib/server/auth";
 
 export async function POST(req: Request) {
@@ -10,8 +10,14 @@ export async function POST(req: Request) {
   if (!name) return NextResponse.json({ error: "Subject name is required." }, { status: 400 });
   const id = String(body?.id ?? "");
   if (!id) return NextResponse.json({ error: "Missing id." }, { status: 400 });
-  getDb()
-    .prepare("INSERT INTO subjects (id, user_id, name, description, color, created_at) VALUES (?,?,?,?,?,?)")
-    .run(id, user.id, name, String(body?.description ?? ""), String(body?.color ?? "#7C3AED"), Date.now());
+  await run(
+    "INSERT INTO subjects (id, user_id, name, description, color, created_at) VALUES (?,?,?,?,?,?)",
+    id,
+    user.id,
+    name,
+    String(body?.description ?? ""),
+    String(body?.color ?? "#7C3AED"),
+    Date.now()
+  );
   return NextResponse.json({ ok: true });
 }

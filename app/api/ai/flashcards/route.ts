@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
-import { getDb } from "@/lib/server/db";
+import { q1 } from "@/lib/server/db";
 import { currentUser } from "@/lib/server/auth";
 import { aiModelName, generateCards, getAiKey } from "@/lib/server/ai";
+import { getDb } from "@/lib/server/db";
 
 /** Generate flashcards on any topic with generative AI. */
 export async function POST(req: Request) {
@@ -21,7 +22,7 @@ export async function POST(req: Request) {
   }
 
   const chapter = body?.chapterId
-    ? (db.prepare("SELECT name FROM chapters WHERE user_id = ? AND id = ?").get(user.id, String(body.chapterId)) as { name: string } | undefined)
+    ? await q1<{ name: string }>("SELECT name FROM chapters WHERE user_id = ? AND id = ?", user.id, String(body.chapterId))
     : undefined;
 
   try {

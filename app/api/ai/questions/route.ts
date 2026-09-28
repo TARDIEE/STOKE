@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
-import { getDb } from "@/lib/server/db";
+import { batch, q, q1 } from "@/lib/server/db";
 import { currentUser } from "@/lib/server/auth";
 import { aiModelName, generateCards, getAiKey } from "@/lib/server/ai";
+import { getDb } from "@/lib/server/db";
 import { uid } from "@/lib/server/util";
 
 export interface DayQuestion {
@@ -16,8 +17,8 @@ export interface DayQuestion {
 const MAX_CHAPTERS_PER_DAY = 3;
 const QUESTIONS_PER_CHAPTER = 2;
 
-function listDay(userId: string, day: string): DayQuestion[] {
-  const rows = getDb().prepare("SELECT * FROM ai_questions WHERE user_id = ? AND day = ? ORDER BY created_at").all(userId, day) as Record<string, unknown>[];
+async function listDay(userId: string, day: string): Promise<DayQuestion[]> {
+  const rows = await q("SELECT * FROM ai_questions WHERE user_id = ? AND day = ? ORDER BY created_at", userId, day);
   return rows.map((r) => ({
     id: String(r.id), chapterId: String(r.chapter_id), subjectId: String(r.subject_id),
     chapter: String(r.chapter_name || ""), front: String(r.front), back: String(r.back),
@@ -32,7 +33,7 @@ export async function GET(req: Request) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return NextResponse.json({ error: "Bad day." }, { status: 400 });
   const db = getDb();
   const key = await getAiKey(user.id, db);
-  return NextResponse.json({ questions: listDay(user.id, day), aiReady: !!key, model: aiModelName() });
+  return NextResponse.json({ questions: await listDay(user.id, day), aiReady: !!key, model: aiModelName() });
 }
 
 /**
@@ -55,15 +56,16 @@ export async function POST(req: Request) {
   }
 
   // That day's scheduled chapters (learn + review), highest priority first.
-  const items = db.prepare(
+  const items = await q(
     `SELECT s.chapter_id AS chapterId, s.subject_id AS subjectId, s.kind, c.name AS chapterName, sub.name AS subjectName, ch.weight AS weight
      FROM schedule s
      LEFT JOIN chapters c ON c.id = s.chapter_id AND c.user_id = ?
      LEFT JOIN subjects sub ON sub.id = s.subject_id AND sub.user_id = ?
      LEFT JOIN chapters ch ON ch.id = s.chapter_id AND ch.user_id = ?
      WHERE s.user_id = ? AND s.day = ? AND s.status = 'open' AND s.chapter_id != ''
-     ORDER BY CASE s.kind WHEN 'learn' THEN 0 WHEN 'review' THEN 1 ELSE 2 END, COALESCE(ch.weight, 3) DESC`
-  ).all(user.id, user.id, user.id, user.id, day) as Record<string, unknown>[];
+     ORDER BY CASE s.kind WHEN 'learn' THEN 0 WHEN 'review' THEN 1 ELSE 2 END, COALESCE(ch.weight, 3) DESC`,
+    user.id, user.id, user.id, user.id, day
+  );
 
   const seen = new Set<string>();
   const targets = items.filter((i) => {
@@ -74,7 +76,7 @@ export async function POST(req: Request) {
   }).slice(0, MAX_CHAPTERS_PER_DAY);
 
   if (!targets.length) {
-    return NextResponse.json({ questions: listDay(user.id, day), note: "No chapters scheduled that day." });
+    return NextResponse.json({ questions: await listDay(user.id, day), note: "No chapters scheduled that day." });
   }
 
   try {
@@ -91,15 +93,15 @@ export async function POST(req: Request) {
       }
     }
     if (!made.length) return NextResponse.json({ error: "The AI returned nothing usable — try again." }, { status: 502 });
-    const t = db.transaction(() => {
-      db.prepare("DELETE FROM ai_questions WHERE user_id = ? AND day = ?").run(user.id, day);
-      const ins = db.prepare("INSERT INTO ai_questions (id, user_id, day, chapter_id, subject_id, chapter_name, front, back, created_at) VALUES (?,?,?,?,?,?,?,?,?)");
-      for (const q of made) {
-        ins.run(q.id, user.id, day, q.chapterId, q.subjectId, q.chapter, q.front, q.back, q.created);
-      }
-    });
-    t();
-    return NextResponse.json({ ok: true, model: aiModelName(), questions: listDay(user.id, day) });
+    const db = getDb();
+    await batch([
+      { sql: "DELETE FROM ai_questions WHERE user_id = ? AND day = ?", args: [user.id, day] },
+      ...made.map((qq) => ({
+        sql: "INSERT INTO ai_questions (id, user_id, day, chapter_id, subject_id, chapter_name, front, back, created_at) VALUES (?,?,?,?,?,?,?,?,?)",
+        args: [qq.id, user.id, day, qq.chapterId, qq.subjectId, qq.chapter, qq.front, qq.back, qq.created] as unknown[],
+      })),
+    ]);
+    return NextResponse.json({ ok: true, model: aiModelName(), questions: await listDay(user.id, day) });
   } catch {
     return NextResponse.json({ error: "Could not reach the AI service. Check your connection and try again." }, { status: 502 });
   }

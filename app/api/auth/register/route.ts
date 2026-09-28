@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getDb } from "@/lib/server/db";
+import { q1, run } from "@/lib/server/db";
 import { createSession, hashPassword, publicUser, type DbUser } from "@/lib/server/auth";
 import { uid } from "@/lib/server/util";
 
@@ -16,18 +16,23 @@ export async function POST(req: Request) {
   if (!EMAIL_RE.test(email)) return NextResponse.json({ error: "Please enter a valid email address." }, { status: 400 });
   if (password.length < 6) return NextResponse.json({ error: "Password must be at least 6 characters." }, { status: 400 });
 
-  const db = getDb();
-  const taken = db.prepare("SELECT id FROM users WHERE email = ?").get(email);
+  const taken = await q1("SELECT id FROM users WHERE email = ?", email);
   if (taken) return NextResponse.json({ error: "An account with this email already exists. Try logging in." }, { status: 409 });
 
   const id = uid();
   const { salt, hash } = hashPassword(password);
-  db.prepare(
-    "INSERT INTO users (id, name, email, pass_salt, pass_hash, created_at) VALUES (?,?,?,?,?,?)"
-  ).run(id, name, email, salt, hash, Date.now());
-  db.prepare("INSERT INTO pomo_settings (user_id) VALUES (?)").run(id);
+  await run(
+    "INSERT INTO users (id, name, email, pass_salt, pass_hash, created_at) VALUES (?,?,?,?,?,?)",
+    id,
+    name,
+    email,
+    salt,
+    hash,
+    Date.now()
+  );
+  await run("INSERT INTO pomo_settings (user_id) VALUES (?)", id);
   await createSession(id);
 
-  const user = db.prepare("SELECT id, name, email, onboarded, focus_preset, reminders, morning, evening, frequency, theme, exam_id, exam_name, exam_date, focus_goal, (CASE WHEN ai_key != '' THEN 1 ELSE 0 END) AS has_ai_key FROM users WHERE id = ?").get(id) as DbUser;
+  const user = (await q1<DbUser>("SELECT id, name, email, onboarded, focus_preset, reminders, morning, evening, frequency, theme, exam_id, exam_name, exam_date, focus_goal, (CASE WHEN ai_key != '' THEN 1 ELSE 0 END) AS has_ai_key FROM users WHERE id = ?", id)) as DbUser;
   return NextResponse.json({ user: publicUser(user) });
 }

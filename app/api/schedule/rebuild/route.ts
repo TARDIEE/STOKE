@@ -6,6 +6,6 @@ import { generateSchedule } from "@/lib/server/schedule";
 export async function POST() {
   const user = await currentUser();
   if (!user) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
-  const items = generateSchedule(user.id, Date.now());
+  const items = await generateSchedule(user.id, Date.now());
   return NextResponse.json({ ok: true, planned: items.length });
 }

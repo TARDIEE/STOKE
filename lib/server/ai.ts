@@ -1,4 +1,4 @@
-import type { Database } from "better-sqlite3";
+import type { Client } from "@libsql/client";
 
 const MODEL = process.env.GROQ_MODEL || "openai/gpt-oss-120b";
 
@@ -35,8 +35,9 @@ export function extractCards(content: string): AiCard[] {
   return [];
 }
 
-export async function getAiKey(userId: string, db: Database): Promise<string> {
-  const row = db.prepare("SELECT ai_key FROM users WHERE id = ?").get(userId) as { ai_key: string };
+export async function getAiKey(userId: string, db: Client): Promise<string> {
+  const r = await db.execute({ sql: "SELECT ai_key FROM users WHERE id = ?", args: [userId] });
+  const row = r.rows[0] as unknown as { ai_key: string } | undefined;
   return (row?.ai_key || process.env.GROQ_API_KEY || "").trim();
 }
 
