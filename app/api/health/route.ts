@@ -15,13 +15,13 @@ export async function GET() {
         : undefined,
     });
   } catch (e) {
+    const msg = e instanceof Error ? e.message : "Database unreachable.";
+    // Turso 400 = the URL/token values are malformed or mismatched.
+    const hint = /status 400/i.test(msg)
+      ? "Turso rejected the connection values. Re-copy the EXACT libsql:// URL from the Turso dashboard (no edits, no trailing slash) and create a fresh token for that same database, then update both env vars and redeploy."
+      : "Set TURSO_DATABASE_URL + TURSO_AUTH_TOKEN env vars (see .env.example).";
     return NextResponse.json(
-      {
-        ok: false,
-        db: dbKind(),
-        error: e instanceof Error ? e.message : "Database unreachable.",
-        hint: "Set TURSO_DATABASE_URL + TURSO_AUTH_TOKEN env vars (see .env.example).",
-      },
+      { ok: false, db: dbKind(), error: msg, hint },
       { status: 503 }
     );
   }
