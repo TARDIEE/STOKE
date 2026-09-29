@@ -55,6 +55,12 @@ export async function GET() {
   });
   } catch (e) {
     console.error("bootstrap failed:", e);
-    return NextResponse.json({ error: `Server error: ${e instanceof Error ? e.message : "unknown"}` }, { status: 500 });
+    const msg = e instanceof Error ? e.message : "unknown";
+    // Turso 400 = the URL/token values are malformed or mismatched; surface
+    // the fix directly instead of a raw driver error (see /api/health).
+    const hint = /status 400/i.test(msg)
+      ? " Turso rejected the database connection values. Re-copy the EXACT libsql:// URL from the Turso dashboard (no edits, no trailing slash) and create a fresh token for that same database, then update TURSO_DATABASE_URL + TURSO_AUTH_TOKEN and redeploy."
+      : "";
+    return NextResponse.json({ error: `Server error: ${msg}.${hint}` }, { status: 500 });
   }
 }
