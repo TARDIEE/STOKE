@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   previewIntervals, previewLabel, useDerived, useStudy,
   type Flashcard, type Grade,
@@ -16,30 +16,12 @@ export default function ReviewsView({ queue, pos, setPos, setQueue, showAnswer, 
   const { data, gradeCard, pushToast } = useStudy();
   const d = useDerived();
   const [done, setDone] = useState(0);
-  const [celebrated, setCelebrated] = useState(false);
+  const [celebratedDone, setCelebratedDone] = useState(-1);
   const card: Flashcard | undefined = queue.length && data ? data.cards.find((c) => c.id === queue[Math.min(pos, queue.length - 1)]) : undefined;
   const review = card && data ? data.reviews[card.id] : undefined;
   const finished = !card && done > 0;
 
-  useEffect(() => {
-    if (!finished) setCelebrated(false);
-  }, [finished]);
-
-  useEffect(() => {
-    const fn = (e: KeyboardEvent) => {
-      if (!card) return;
-      if (e.code === "Space" && !showAnswer) { e.preventDefault(); setShowAnswer(true); }
-      if (showAnswer && ["1", "2", "3", "4"].includes(e.key)) {
-        const g: Grade[] = ["again", "hard", "good", "easy"];
-        answer(g[Number(e.key) - 1]);
-      }
-    };
-    window.addEventListener("keydown", fn);
-    return () => window.removeEventListener("keydown", fn);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [card?.id, showAnswer, pos, queue]);
-
-  const answer = (g: Grade) => {
+  const answer = useCallback((g: Grade) => {
     if (!card || !review) return;
     const iv = previewIntervals(review);
     gradeCard(card.id, g);
@@ -55,7 +37,22 @@ export default function ReviewsView({ queue, pos, setPos, setQueue, showAnswer, 
       setQueue(rest);
       if (pos >= rest.length) setPos(0);
     }
-  };
+  }, [card, review, gradeCard, pushToast, queue, pos, setQueue, setPos, setShowAnswer]);
+
+  const showCelebrate = finished && celebratedDone !== done;
+
+  useEffect(() => {
+    const fn = (e: KeyboardEvent) => {
+      if (!card) return;
+      if (e.code === "Space" && !showAnswer) { e.preventDefault(); setShowAnswer(true); }
+      if (showAnswer && ["1", "2", "3", "4"].includes(e.key)) {
+        const g: Grade[] = ["again", "hard", "good", "easy"];
+        answer(g[Number(e.key) - 1]);
+      }
+    };
+    window.addEventListener("keydown", fn);
+    return () => window.removeEventListener("keydown", fn);
+  }, [card?.id, showAnswer, pos, queue, card, answer, setShowAnswer]);
 
   if (!data) return null;
 
@@ -88,7 +85,7 @@ export default function ReviewsView({ queue, pos, setPos, setQueue, showAnswer, 
 
       {!card ? (
         <div className="card p-6 mt-4">
-          {finished && !celebrated && <Celebrate title="Review session cleared!" onDone={() => setCelebrated(true)} />}
+          {showCelebrate && <Celebrate title="Review session cleared!" onDone={() => setCelebratedDone(done)} />}
           {d.dueToday === 0 && done === 0 ? (
             <div className="py-8 text-center">
               <div className="font-semibold">You&apos;re all caught up.</div>

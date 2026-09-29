@@ -37,7 +37,18 @@ export default function CalendarView({ onOpenChapter, onReview, onReRead }: { on
     } catch { /* ignore */ }
   }, [monthParam]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/schedule?month=${monthParam}`);
+        if (!cancelled && res.ok) setCal(await res.json());
+      } catch { /* ignore */ }
+    })();
+    return () => { cancelled = true; };
+  }, [monthParam]);
+
+  const [todayKey] = useState(() => dayKey(Date.now()));
 
   const cells: (Date | null)[] = useMemo(() => {
     const y = cursor.getFullYear(), mo = cursor.getMonth();
@@ -145,8 +156,8 @@ export default function CalendarView({ onOpenChapter, onReview, onReRead }: { on
             const done = dayPlan.length - open;
             const intensity = v ? Math.min(1, v.sec / maxSec) : 0;
             const bg = intensity === 0 ? "var(--bg)" : `rgba(124,58,237,${0.15 + intensity * 0.75})`;
-            const isToday = k === dayKey(Date.now());
-            const isPast = k < dayKey(Date.now()) && open > 0;
+            const isToday = k === todayKey;
+            const isPast = k < todayKey && open > 0;
             return (
               <button key={i} onClick={() => setSelDay(k)}
                 className="rounded-lg p-1 min-h-16 text-left overflow-hidden" style={{ background: bg, border: isToday ? "2px solid #7C3AED" : isPast ? "2px solid #EF4444" : selDay === k ? "2px solid #A78BFA" : "1px solid var(--border)" }}
@@ -174,6 +185,7 @@ export default function CalendarView({ onOpenChapter, onReview, onReRead }: { on
 
       {selDay && (
         <DayTab
+          key={selDay}
           day={selDay}
           items={selPlan}
           stat={selStat ?? undefined}
@@ -206,18 +218,16 @@ function DayTab({ day, items, stat, sessions, onClose, onToggle, onChanged, onOp
   const { data, pushToast, addCards } = useStudy();
   const [future, setFuture] = useState<SchedItem[]>([]);
   const [pick, setPick] = useState("");
-  const [celebrated, setCelebrated] = useState(false);
+  const [celebratedDone, setCelebratedDone] = useState(-1);
   const [questions, setQuestions] = useState<{ id: string; chapterId: string; subjectId: string; chapter: string; front: string; back: string }[]>([]);
   const [aiBusy, setAiBusy] = useState(false);
   const [aiTried, setAiTried] = useState(false);
   const [revealed, setRevealed] = useState<Set<string>>(new Set());
+  const [todayKey] = useState(() => dayKey(Date.now()));
   const done = items.filter((i) => i.status === "done").length;
   const full = items.length > 0 && done === items.length;
-  const isToday = day === dayKey(Date.now());
-
-  useEffect(() => {
-    if (!full) setCelebrated(false);
-  }, [full]);
+  const showCelebrate = full && celebratedDone !== done;
+  const isToday = day === todayKey;
 
   useEffect(() => {
     const fn = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
@@ -226,37 +236,40 @@ function DayTab({ day, items, stat, sessions, onClose, onToggle, onChanged, onOp
   }, [onClose]);
 
   useEffect(() => {
-    setAiTried(false);
-    setQuestions([]);
-    setRevealed(new Set());
+    let cancelled = false;
     fetch(`/api/ai/questions?day=${day}`)
       .then((r) => r.json())
       .then((b) => {
+        if (cancelled) return;
         if (Array.isArray(b.questions)) setQuestions(b.questions);
         // Fresh questions every day: auto-generate once when today opens empty.
-        if (day === dayKey(Date.now()) && (!b.questions || b.questions.length === 0) && b.aiReady) {
+        if (day === todayKey && (!b.questions || b.questions.length === 0) && b.aiReady) {
           setAiTried(true);
           setAiBusy(true);
           fetch("/api/ai/questions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ day }) })
             .then((r) => r.json())
-            .then((g) => { if (Array.isArray(g.questions) && g.questions.length) setQuestions(g.questions); })
+            .then((g) => { if (!cancelled && Array.isArray(g.questions) && g.questions.length) setQuestions(g.questions); })
             .catch(() => {})
-            .finally(() => setAiBusy(false));
+            .finally(() => { if (!cancelled) setAiBusy(false); });
         } else {
           setAiTried(true);
         }
       })
-      .catch(() => setAiTried(true));
-  }, [day]);
+      .catch(() => { if (!cancelled) setAiTried(true); });
+    return () => { cancelled = true; };
+  }, [day, todayKey]);
 
   useEffect(() => {
+    let cancelled = false;
     fetch("/api/schedule?all=1")
       .then((r) => r.json())
       .then((b) => {
+        if (cancelled) return;
         const all = (Object.values((b.plan ?? {}) as Record<string, SchedItem[]>).flat() as SchedItem[]);
         setFuture(all.filter((x) => x.kind === "learn" && x.status === "open" && x.day > day).slice(0, 30));
       })
       .catch(() => {});
+    return () => { cancelled = true; };
   }, [day, items.length]);
 
   const moveHere = async () => {
@@ -305,7 +318,7 @@ function DayTab({ day, items, stat, sessions, onClose, onToggle, onChanged, onOp
     <div className="fixed inset-0 z-40 p-4" role="dialog" aria-modal="true" aria-label={`Plan for ${day}`}>
       <div className="absolute inset-0" style={{ background: "rgba(15,10,31,.45)" }} onClick={onClose} />
       <div className="card relative max-w-lg mx-auto mt-6 md:mt-14 p-5 fade-in max-h-[85vh] overflow-auto">
-        {full && !celebrated && <Celebrate title="Day complete — battery full!" onDone={() => setCelebrated(true)} />}
+        {showCelebrate && <Celebrate title="Day complete — battery full!" onDone={() => setCelebratedDone(done)} />}
         <div className="flex items-center gap-2">
           <h3 className="font-bold text-lg">{new Date(day + "T12:00:00").toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}</h3>
           <button onClick={onClose} className="ml-auto px-2.5 py-1 rounded-lg text-sm font-bold" style={{ border: "1px solid var(--border)" }} aria-label="Close day tab">✕</button>
@@ -423,12 +436,12 @@ function shortTitle(t: string) {
 
 /** Live ticking deadline countdown — days, hours, minutes, seconds. */
 function CountdownCard({ exam, totalPlanned, totalDone }: { exam: ExamInfo; totalPlanned: number; totalDone: number }) {
-  const [, tick] = useState(0);
+  const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
-    const iv = setInterval(() => tick((t) => t + 1), 1000);
+    const iv = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(iv);
   }, []);
-  const ms = Math.max(0, exam.date - Date.now());
+  const ms = Math.max(0, exam.date - now);
   const d = Math.floor(ms / 86400000);
   const h = Math.floor((ms % 86400000) / 3600000);
   const m = Math.floor((ms % 3600000) / 60000);

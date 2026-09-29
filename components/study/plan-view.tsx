@@ -62,7 +62,22 @@ export default function PlanView({ onReview, go }: {
     setLoading(false);
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/plan");
+        if (!cancelled && res.ok) {
+          const body = await res.json();
+          setItems(body.items);
+          setTomorrow(body.tomorrow);
+          setStudied(body.studied);
+        }
+      } catch { /* offline — keep current */ }
+      if (!cancelled) setLoading(false);
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   const toggle = async (it: PlanItem) => {
     const status = it.status === "done" ? "open" : "done";

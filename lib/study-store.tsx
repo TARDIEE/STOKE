@@ -117,6 +117,17 @@ interface Persisted {
 
 const POMO_KEY = "stokestudy.pomo";
 
+function readPomoInit() {
+  try {
+    if (typeof window === "undefined") return null;
+    const raw = localStorage.getItem(POMO_KEY);
+    if (!raw) return null;
+    const p = JSON.parse(raw);
+    if (p && p.targetEnd && p.running) return p;
+  } catch { /* ignore */ }
+  return null;
+}
+
 export const uid = () =>
   Math.random().toString(36).slice(2, 9) + Date.now().toString(36).slice(-4);
 export const dayKey = (ts: number) => {
@@ -295,18 +306,20 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
   const [authError, setAuthError] = useState<string | null>(null);
   const [bootError, setBootError] = useState<string | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
-  // pomo runtime
-  const [pomoMode, setPomoMode] = useState<PomoMode>("focus");
-  const [pomoRunning, setPomoRunning] = useState(false);
-  const [targetEnd, setTargetEnd] = useState<number | null>(null);
+  // pomo runtime (restored lazily from localStorage so no effect setState is needed)
+  const [pomoMode, setPomoMode] = useState<PomoMode>(() => readPomoInit()?.mode || "focus");
+  const [pomoRunning, setPomoRunning] = useState(() => Boolean(readPomoInit()?.running));
+  const [targetEnd, setTargetEnd] = useState<number | null>(() => readPomoInit()?.targetEnd ?? null);
   const [pomoRemaining, setPomoRemaining] = useState(25 * 60);
-  const [pomoTotal, setPomoTotal] = useState(25 * 60);
-  const [pomoCycle, setPomoCycle] = useState(1);
-  const [pomoSubjectId, setPomoSubjectId] = useState<string | null>(null);
-  const [pomoChapterId, setPomoChapterId] = useState<string | null>(null);
+  const [pomoTotal, setPomoTotal] = useState<number>(() => readPomoInit()?.total || 25 * 60);
+  const [pomoCycle, setPomoCycle] = useState<number>(() => readPomoInit()?.cycle || 1);
+  const [pomoSubjectId, setPomoSubjectId] = useState<string | null>(() => readPomoInit()?.subjectId ?? null);
+  const [pomoChapterId, setPomoChapterId] = useState<string | null>(() => readPomoInit()?.chapterId ?? null);
   const [pomoLabel, setPomoLabel] = useState<"learn" | "reread">("learn");
   const dataRef = useRef<Persisted | null>(null);
-  dataRef.current = data;
+  useEffect(() => {
+    dataRef.current = data;
+  }, [data]);
   const completingRef = useRef(false);
 
   const pushToast = useCallback((t: Omit<Toast, "id">) => {
@@ -354,24 +367,8 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
     })().finally(() => {
       if (!cancelled) setAuthChecked(true);
     });
-    try {
-      const raw = localStorage.getItem(POMO_KEY);
-      if (raw) {
-        const p = JSON.parse(raw);
-        if (p && p.targetEnd && p.running) {
-          setPomoMode(p.mode || "focus");
-          setTargetEnd(p.targetEnd);
-          setPomoTotal(p.total || 25 * 60);
-          setPomoCycle(p.cycle || 1);
-          setPomoSubjectId(p.subjectId ?? null);
-          setPomoChapterId(p.chapterId ?? null);
-          setPomoRunning(true);
-        }
-      }
-    } catch { /* ignore */ }
     return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [bootstrap]);
 
   useEffect(() => {
     if (data) {
@@ -395,21 +392,6 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
       }));
     } catch { /* ignore */ }
   }, [pomoMode, pomoRunning, targetEnd, pomoTotal, pomoCycle, pomoSubjectId, pomoChapterId]);
-
-  // tick: remaining = targetEnd - now (drift-proof)
-  useEffect(() => {
-    if (!pomoRunning || !targetEnd) return;
-    const iv = setInterval(() => {
-      const rem = Math.max(0, Math.round((targetEnd - Date.now()) / 1000));
-      setPomoRemaining(rem);
-      if (rem <= 0 && !completingRef.current) {
-        completingRef.current = true;
-        handleComplete();
-      }
-    }, 250);
-    return () => clearInterval(iv);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pomoRunning, targetEnd, pomoMode]);
 
   const modeSecs = useCallback((m: PomoMode, d: Persisted | null) => {
     if (!d) return 25 * 60;
@@ -476,7 +458,6 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
       }
     }
     setTimeout(() => { completingRef.current = false; }, 1000);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pomoMode, pomoTotal, pomoCycle, pomoSubjectId, pomoChapterId, pomoLabel, modeSecs, pushToast, persistSession]);
 
   const pomoStart = useCallback((mode?: PomoMode, s?: string | null, c?: string | null, label?: "learn" | "reread") => {
@@ -490,6 +471,20 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
     setTargetEnd(Date.now() + total * 1000);
     setPomoRunning(true);
   }, [pomoMode, modeSecs]);
+
+  // tick: remaining = targetEnd - now (drift-proof)
+  useEffect(() => {
+    if (!pomoRunning || !targetEnd) return;
+    const iv = setInterval(() => {
+      const rem = Math.max(0, Math.round((targetEnd - Date.now()) / 1000));
+      setPomoRemaining(rem);
+      if (rem <= 0 && !completingRef.current) {
+        completingRef.current = true;
+        handleComplete();
+      }
+    }, 250);
+    return () => clearInterval(iv);
+  }, [pomoRunning, targetEnd, handleComplete]);
 
   const value: StudyCtx = useMemo(() => ({
     data, authChecked, authError, bootError,
@@ -688,7 +683,6 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
       handleComplete();
     },
     setPomoContext: (s, c) => { setPomoSubjectId(s); setPomoChapterId(c); },
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [data, authChecked, authError, bootError, toasts, pushToast, fail, bootstrap, persistSession, pomoMode, pomoRunning, pomoRemaining, pomoTotal, pomoCycle, pomoSubjectId, pomoChapterId, pomoLabel, targetEnd, pomoStart, handleComplete]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
@@ -698,9 +692,13 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
 
 export function useDerived() {
   const { data } = useStudy();
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const iv = setInterval(() => setNow(Date.now()), 60000);
+    return () => clearInterval(iv);
+  }, []);
   return useMemo(() => {
-    const now = Date.now();
-    const startOfToday = new Date();
+    const startOfToday = new Date(now);
     startOfToday.setHours(0, 0, 0, 0);
     const t0 = startOfToday.getTime();
     const dayAfter = t0 + 2 * 24 * 3600_000;
@@ -725,7 +723,7 @@ export function useDerived() {
     sessions.forEach((s) => { if (s.completed) activeDays.add(dayKey(s.start)); });
     logs.forEach((l) => activeDays.add(dayKey(l.at)));
     let streak = 0;
-    const cursor = new Date(); cursor.setHours(0, 0, 0, 0);
+    const cursor = new Date(now); cursor.setHours(0, 0, 0, 0);
     if (!activeDays.has(dayKey(cursor.getTime()))) cursor.setDate(cursor.getDate() - 1);
     while (activeDays.has(dayKey(cursor.getTime()))) { streak++; cursor.setDate(cursor.getDate() - 1); }
 
@@ -768,7 +766,7 @@ export function useDerived() {
       totalDays: activeDays.size, weekFocus, monthFocus, retention, dueCards, plan,
       totalCards: cards.length,
     };
-  }, [data]);
+  }, [data, now]);
 }
 
 export function requestNotificationPermission() {

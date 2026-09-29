@@ -7,9 +7,9 @@ import { Dot, MiniStat } from "./shared";
 export default function StatsView() {
   const { data } = useStudy();
   const d = useDerived();
-  const sessions = data?.sessions ?? [];
-  const logs = data?.logs ?? [];
-  const subjects = data?.subjects ?? [];
+  const sessions = useMemo(() => data?.sessions ?? [], [data]);
+  const logs = useMemo(() => data?.logs ?? [], [data]);
+  const subjects = useMemo(() => data?.subjects ?? [], [data]);
   const week = useMemo(() => {
     const arr: { k: string; label: string; sec: number; reviews: number; pomos: number }[] = [];
     for (let i = 6; i >= 0; i--) {

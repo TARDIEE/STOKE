@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { batch, q, q1 } from "@/lib/server/db";
+import { batch, q } from "@/lib/server/db";
 import { currentUser } from "@/lib/server/auth";
 import { aiModelName, generateCards, getAiKey } from "@/lib/server/ai";
 import { getDb } from "@/lib/server/db";
@@ -93,7 +93,6 @@ export async function POST(req: Request) {
       }
     }
     if (!made.length) return NextResponse.json({ error: "The AI returned nothing usable — try again." }, { status: 502 });
-    const db = getDb();
     await batch([
       { sql: "DELETE FROM ai_questions WHERE user_id = ? AND day = ?", args: [user.id, day] },
       ...made.map((qq) => ({

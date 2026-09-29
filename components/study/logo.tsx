@@ -1,5 +1,7 @@
 "use client";
 
+import Image from "next/image";
+
 interface LogoProps {
   size?: number;
   /** show the wordmark next to the mark */
@@ -11,7 +13,7 @@ interface LogoProps {
  */
 export function AppLogo({ size = 36 }: LogoProps) {
   return (
-    <img
+    <Image
       src="/logo.jpeg"
       width={size}
       height={size}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useState } from "react";
 
 const COLORS = ["#7C3AED", "#A78BFA", "#22C55E", "#F59E0B", "#0EA5E9", "#EF4444"];
 
@@ -11,18 +11,16 @@ export default function Celebrate({ title = "Done!", onDone }: { title?: string;
     return () => clearTimeout(t);
   }, [onDone]);
 
-  const pieces = useMemo(
-    () =>
-      Array.from({ length: 42 }, (_, i) => ({
-        id: i,
-        x: Math.cos((i / 42) * Math.PI * 2 + Math.random()) * (120 + Math.random() * 160),
-        y: Math.sin((i / 42) * Math.PI * 2 + Math.random()) * (120 + Math.random() * 160),
-        size: 5 + Math.random() * 7,
-        color: COLORS[i % COLORS.length],
-        round: Math.random() > 0.5,
-        delay: Math.random() * 0.15,
-      })),
-    []
+  const [pieces] = useState(() =>
+    Array.from({ length: 42 }, (_, i) => ({
+      id: i,
+      x: Math.cos((i / 42) * Math.PI * 2 + Math.random()) * (120 + Math.random() * 160),
+      y: Math.sin((i / 42) * Math.PI * 2 + Math.random()) * (120 + Math.random() * 160),
+      size: 5 + Math.random() * 7,
+      color: COLORS[i % COLORS.length],
+      round: Math.random() > 0.5,
+      delay: Math.random() * 0.15,
+    }))
   );
 
   return (

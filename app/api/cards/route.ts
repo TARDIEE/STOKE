@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { batch, run } from "@/lib/server/db";
+import { batch } from "@/lib/server/db";
 import { currentUser } from "@/lib/server/auth";
 
 export async function POST(req: Request) {

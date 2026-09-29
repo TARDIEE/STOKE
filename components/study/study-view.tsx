@@ -20,20 +20,16 @@ export default function StudyView({ subjectSel, chapterSel, setSubjectSel, setCh
   onReview: (s?: string | null, c?: string | null) => void; go: (v: View) => void;
   onAddCard: (s?: string, c?: string) => void; onAddChapter: (s: string) => void;
 }) {
-  const { data, pomoStart, updateChapter, deleteChapter } = useStudy();
-  const [editNotes, setEditNotes] = useState(false);
-  const [notes, setNotes] = useState("");
-  const [notesFor, setNotesFor] = useState<string | null>(null);
-  if (!data) return null;
-  const subj = data.subjects.find((s) => s.id === (subjectSel ?? data.subjects[0]?.id)) ?? data.subjects[0];
-  const chapters = data.chapters.filter((c) => c.subjectId === subj?.id);
+  const { data, pomoStart, deleteChapter } = useStudy();
+  const [now] = useState(() => Date.now());
+  const subj = data?.subjects.find((s) => s.id === (subjectSel ?? data.subjects[0]?.id)) ?? data?.subjects[0];
+  const chapters = data?.chapters.filter((c) => c.subjectId === subj?.id) ?? [];
   const ch = chapters.find((c) => c.id === chapterSel) ?? chapters[0] ?? null;
-  if (ch && notesFor !== ch.id) { setNotesFor(ch.id); setNotes(ch.notes ?? ""); setEditNotes(false); }
+  if (!data) return null;
 
   if (!subj) return <EmptyState go={go} />;
 
   const cards = data.cards.filter((c) => (ch ? c.chapterId === ch.id : c.subjectId === subj.id));
-  const now = Date.now();
   const due = cards.filter((c) => (data.reviews[c.id]?.nextReviewAt ?? Infinity) <= now).length;
   const studied = data.sessions.filter((s) => (ch ? s.chapterId === ch.id : s.subjectId === subj.id));
   const studySec = studied.reduce((a, s) => a + s.durationSec, 0);
@@ -72,16 +68,7 @@ export default function StudyView({ subjectSel, chapterSel, setSubjectSel, setCh
           </div>
 
           <div className="grid md:grid-cols-2 gap-3 mt-3">
-            <section className="card p-4">
-              <div className="flex items-center justify-between"><h3 className="font-bold">Learn — Notes</h3>
-                <button onClick={() => { if (editNotes) updateChapter(ch.id, { notes }); setEditNotes(!editNotes); }} className="text-xs font-bold" style={{ color: "#7C3AED" }}>{editNotes ? "Save" : "Edit"}</button>
-              </div>
-              {editNotes ? (
-                <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={6} className="w-full mt-2 p-2 rounded-lg text-sm" style={{ border: "1px solid var(--border)", background: "var(--bg)" }} aria-label="Chapter notes" />
-              ) : (
-                <p className="text-sm mt-2 whitespace-pre-wrap" style={{ color: "var(--ink-2)" }}>{ch.notes || "No notes yet. Add study material for this chapter."}</p>
-              )}
-            </section>
+            {ch && <NotesEditor key={ch.id} chapterId={ch.id} initialNotes={ch.notes ?? ""} />}
             <section className="card p-4">
               <div className="flex items-center justify-between"><h3 className="font-bold">Flashcards ({cards.length})</h3>
                 <button onClick={() => onAddCard(subj.id, ch.id)} className="text-xs font-bold" style={{ color: "#7C3AED" }}>+ Add</button>
@@ -122,6 +109,24 @@ function EmptyState({ go }: { go: (v: View) => void }) {
       <div className="text-sm mt-1" style={{ color: "var(--ink-2)" }}>Create your first subject and start building your study system.</div>
       <button onClick={() => go("subjects")} className="btn-primary px-4 py-2 text-sm mt-3">+ Create Subject</button>
     </div>
+  );
+}
+
+function NotesEditor({ chapterId, initialNotes }: { chapterId: string; initialNotes: string }) {
+  const { updateChapter } = useStudy();
+  const [editNotes, setEditNotes] = useState(false);
+  const [notes, setNotes] = useState(initialNotes);
+  return (
+    <section className="card p-4">
+      <div className="flex items-center justify-between"><h3 className="font-bold">Learn — Notes</h3>
+        <button onClick={() => { if (editNotes) updateChapter(chapterId, { notes }); setEditNotes(!editNotes); }} className="text-xs font-bold" style={{ color: "#7C3AED" }}>{editNotes ? "Save" : "Edit"}</button>
+      </div>
+      {editNotes ? (
+        <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={6} className="w-full mt-2 p-2 rounded-lg text-sm" style={{ border: "1px solid var(--border)", background: "var(--bg)" }} aria-label="Chapter notes" />
+      ) : (
+        <p className="text-sm mt-2 whitespace-pre-wrap" style={{ color: "var(--ink-2)" }}>{initialNotes || "No notes yet. Add study material for this chapter."}</p>
+      )}
+    </section>
   );
 }
 

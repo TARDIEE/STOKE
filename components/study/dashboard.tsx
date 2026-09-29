@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { fmtDur, useDerived, useStudy } from "@/lib/study-store";
 import { Dot, Empty, SessionRow, Urgency, greeting, type View } from "./shared";
 
@@ -10,6 +11,7 @@ export default function Dashboard({ onReview, go, openSubject }: {
 }) {
   const { data } = useStudy();
   const d = useDerived();
+  const [now] = useState(() => Date.now());
   if (!data) return null;
   const rec = d.overdue > 0
     ? `Start with ${d.overdue} overdue card${d.overdue > 1 ? "s" : ""}.`
@@ -18,7 +20,7 @@ export default function Dashboard({ onReview, go, openSubject }: {
     <div>
       <h1 className="text-2xl md:text-3xl font-bold tracking-tight">{greeting()}, {data.user.name || "Student"}</h1>
       <p className="text-sm mt-1" style={{ color: "var(--ink-2)" }}>Let&apos;s make today&apos;s study session count. {rec}</p>
-      {data.user.examDate > Date.now() && <ExamChip go={go} />}
+      {data.user.examDate > now && <ExamChip go={go} />}
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-5">
         <StatCard label="Reviews Due" value={String(d.dueToday)} sub={d.overdue ? `${d.overdue} overdue` : "Due today"} action={() => onReview()} actionLabel="Start Review" />
@@ -116,8 +118,9 @@ function GoalBar({ go }: { go: (v: View) => void }) {
 
 function ExamChip({ go }: { go: (v: View) => void }) {
   const { data } = useStudy();
+  const [now] = useState(() => Date.now());
   if (!data || !data.user.examDate) return null;
-  const ms = Math.max(0, data.user.examDate - Date.now());
+  const ms = Math.max(0, data.user.examDate - now);
   const d = Math.floor(ms / 86400000);
   const h = Math.floor((ms % 86400000) / 3600000);
   return (

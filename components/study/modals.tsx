@@ -144,18 +144,18 @@ export function CardModal({ editId, subjectId, chapterId, close, inline }: { edi
   const [tags, setTags] = useState((existing?.tags ?? []).join(", "));
   const [notes, setNotes] = useState(existing?.notes ?? "");
   const chapters = (data?.chapters ?? []).filter((c) => c.subjectId === sid);
-  useEffect(() => { if (!cid && chapters[0]) setCid(chapters[0].id); }, [sid]); // eslint-disable-line react-hooks/exhaustive-deps
+  const cidEffective = cid || chapters[0]?.id || "";
   if (!data) return null;
-  const activeChapter = chapters.find((c) => c.id === cid) ?? chapters[0];
+  const activeChapter = chapters.find((c) => c.id === cidEffective) ?? chapters[0];
   const body = (
     <>
       <h3 className="font-bold text-lg">{existing ? "Edit flashcard" : "New flashcard"}</h3>
       {!existing && (
         <AiGenerator
           topicDefault={activeChapter ? `${data.subjects.find((s) => s.id === sid)?.name ?? ""} — ${activeChapter.name}` : ""}
-          chapterId={cid}
+          chapterId={cidEffective}
           onAdd={(cards) => {
-            addCards(cards.map((c) => ({ subjectId: sid, chapterId: cid || chapters[0]?.id || "", front: c.front, back: c.back, tags: ["ai"], notes: "" })));
+            addCards(cards.map((c) => ({ subjectId: sid, chapterId: cidEffective, front: c.front, back: c.back, tags: ["ai"], notes: "" })));
             pushToast({ title: `${cards.length} AI cards added`, body: "Scheduled for review today." });
             close();
           }}
@@ -165,7 +165,7 @@ export function CardModal({ editId, subjectId, chapterId, close, inline }: { edi
       <label className="text-xs font-medium block mt-2">Back — answer<textarea value={back} onChange={(e) => setBack(e.target.value)} rows={2} placeholder="Write your answer…" className="w-full mt-1 px-3 py-2 rounded-xl text-sm" style={{ border: "1px solid var(--border)", background: "var(--bg)" }} aria-label="Card back" /></label>
       <div className="grid grid-cols-2 gap-2 mt-2">
         <label className="text-xs flex flex-col gap-1">Subject<select value={sid} onChange={(e) => setSid(e.target.value)} className="px-2 py-2 rounded-xl text-sm" style={{ border: "1px solid var(--border)", background: "var(--bg)" }} aria-label="Subject">{data.subjects.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></label>
-        <label className="text-xs flex flex-col gap-1">Chapter<select value={cid} onChange={(e) => setCid(e.target.value)} className="px-2 py-2 rounded-xl text-sm" style={{ border: "1px solid var(--border)", background: "var(--bg)" }} aria-label="Chapter">{chapters.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
+        <label className="text-xs flex flex-col gap-1">Chapter<select value={cidEffective} onChange={(e) => setCid(e.target.value)} className="px-2 py-2 rounded-xl text-sm" style={{ border: "1px solid var(--border)", background: "var(--bg)" }} aria-label="Chapter">{chapters.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
       </div>
       <label className="text-xs font-medium block mt-2">Tags<input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="comma, separated" className="w-full mt-1 px-3 py-2 rounded-xl text-sm" style={{ border: "1px solid var(--border)", background: "var(--bg)" }} aria-label="Tags" /></label>
       <label className="text-xs font-medium block mt-2">Extra notes (formula, diagram notes)<input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Optional" className="w-full mt-1 px-3 py-2 rounded-xl text-sm" style={{ border: "1px solid var(--border)", background: "var(--bg)" }} aria-label="Extra notes" /></label>
@@ -173,7 +173,7 @@ export function CardModal({ editId, subjectId, chapterId, close, inline }: { edi
         <button onClick={close} className="flex-1 py-2.5 text-sm font-semibold rounded-xl" style={{ border: "1px solid var(--border)" }}>Cancel</button>
         <button onClick={() => {
           if (!front.trim() || !back.trim() || !sid) { pushToast({ title: "Add a question, answer and subject" }); return; }
-          const payload = { subjectId: sid, chapterId: cid || chapters[0]?.id || "", front: front.trim(), back: back.trim(), tags: tags.split(",").map((t) => t.trim()).filter(Boolean), notes: notes.trim() };
+          const payload = { subjectId: sid, chapterId: cidEffective, front: front.trim(), back: back.trim(), tags: tags.split(",").map((t) => t.trim()).filter(Boolean), notes: notes.trim() };
           if (existing) updateCard(existing.id, payload); else addCard(payload);
           pushToast({ title: "Flashcard saved", body: "Review scheduled for today." });
           close();
