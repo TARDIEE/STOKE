@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Sparkles } from "lucide-react";
 import { requestNotificationPermission, useStudy } from "@/lib/study-store";
 import { NumField, Toggle } from "./shared";
 
@@ -41,12 +42,12 @@ function AiKeyForm({ hasKey }: { hasKey: boolean }) {
   );
 }
 
-export default function SettingsView({ onAddSubject }: { onAddSubject: () => void }) {
+export default function SettingsView({ onAddSubject, bare }: { onAddSubject: () => void; bare?: boolean }) {
   const { data, updateUser, updatePomo, resetAll, exportData, pushToast } = useStudy();
   if (!data) return null;
   return (
     <div className="max-w-2xl">
-      <h1 className="text-2xl font-bold">Settings</h1>
+      {!bare && <h1 className="text-2xl font-bold">Settings</h1>}
       <div className="card p-4 mt-4">
         <h3 className="font-bold text-sm">Profile</h3>
         <div className="grid sm:grid-cols-2 gap-2 mt-2">
@@ -88,7 +89,7 @@ export default function SettingsView({ onAddSubject }: { onAddSubject: () => voi
         <p className="text-[11px] mt-1" style={{ color: "var(--ink-2)" }}>Dark mode uses deep purple / near-black backgrounds.</p>
       </div>
       <div className="card p-4 mt-3">
-        <h3 className="font-bold text-sm">✨ AI flashcard generation</h3>
+        <h3 className="font-bold text-sm flex items-center gap-1.5"><Sparkles size={14} /> AI flashcard generation</h3>
         <p className="text-[11px] mt-1" style={{ color: "var(--ink-2)" }}>
           Powered by Meta&apos;s Llama (free via Groq). Get a free key at console.groq.com — it stays on the server, never shared.
         </p>

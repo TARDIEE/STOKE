@@ -38,10 +38,10 @@ export async function POST(req: Request) {
     });
     s.chapters.forEach((c, ci) => {
       stmts.push({
-        sql: "INSERT INTO chapters (id, user_id, subject_id, name, description, notes, ord, weight, created_at) VALUES (?,?,?,?,?,?,?,?,?)",
+        sql: "INSERT INTO chapters (id, user_id, subject_id, name, description, notes, ord, weight, topics, created_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
         args: [uid(), user.id, sid, c.name,
           `Weight ${"★".repeat(c.weight)}${"☆".repeat(5 - c.weight)} · ~${c.hours}h`,
-          "", ci, c.weight, now + si * 100 + ci],
+          "", ci, c.weight, JSON.stringify(c.topics ?? []), now + si * 100 + ci],
       });
     });
   });

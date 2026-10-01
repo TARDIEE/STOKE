@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { Check, Pencil, RotateCcw, X } from "lucide-react";
 import { fmtDur } from "@/lib/study-store";
 import type { View } from "./shared";
 
@@ -38,9 +39,11 @@ const QUAD_STYLE: Record<Quadrant, { border: string; badge: string; color: strin
   q4: { border: "#71717A", badge: "var(--bg)", color: "var(--ink-2)" },
 };
 
-export default function PlanView({ onReview, go }: {
+export default function PlanView({ onReview, go, onOpenChapter, onOpenCalendar }: {
   onReview: (s?: string | null, c?: string | null) => void;
   go: (v: View) => void;
+  onOpenChapter: (subjectId: string, chapterId: string) => void;
+  onOpenCalendar: () => void;
 }) {
   const [items, setItems] = useState<PlanItem[]>([]);
   const [tomorrow, setTomorrow] = useState<Tomorrow[]>([]);
@@ -48,6 +51,37 @@ export default function PlanView({ onReview, go }: {
   const [loading, setLoading] = useState(true);
   const [custom, setCustom] = useState("");
   const [customQ, setCustomQ] = useState<Quadrant>("q2");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editNote, setEditNote] = useState("");
+
+  const tomorrowKey = () => {
+    const t = new Date();
+    t.setDate(t.getDate() + 1);
+    return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, "0")}-${String(t.getDate()).padStart(2, "0")}`;
+  };
+
+  const saveEdit = async (it: PlanItem) => {
+    const title = editTitle.trim();
+    if (!title) return;
+    const note = editNote.trim();
+    setItems((prev) => prev.map((x) => (x.id === it.id ? { ...x, title, note, source: "custom" as const } : x)));
+    setEditingId(null);
+    try {
+      await fetch(`/api/plan/${it.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title, note }) });
+    } catch {
+      load();
+    }
+  };
+
+  const moveToTomorrow = async (it: PlanItem) => {
+    setItems((prev) => prev.filter((x) => x.id !== it.id));
+    try {
+      await fetch(`/api/plan/${it.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ day: tomorrowKey() }) });
+    } catch {
+      load();
+    }
+  };
 
   const load = useCallback(async (regen = false) => {
     setLoading(true);
@@ -94,6 +128,7 @@ export default function PlanView({ onReview, go }: {
 
   const startTask = (it: PlanItem) => {
     if (it.kind === "custom") { toggle(it); return; }
+    if (it.kind === "learn" && it.refId) { onOpenChapter(it.refSubject || "", it.refId); return; }
     onReview(it.refSubject || null, it.refId || null);
   };
 
@@ -108,8 +143,8 @@ export default function PlanView({ onReview, go }: {
             Auto-built from your spaced-repetition schedule — max 8 tasks in 4 zones.
           </p>
         </div>
-        <button onClick={() => load(true)} className="btn-primary px-4 py-2 text-sm" disabled={loading}>
-          {loading ? "Adjusting…" : "↻ Auto-adjust"}
+        <button onClick={() => load(true)} className="btn-primary px-4 py-2 text-sm inline-flex items-center gap-1.5" disabled={loading}>
+          {loading ? "Adjusting…" : <><RotateCcw size={14} /> Auto-adjust</>}
         </button>
       </div>
 
@@ -119,7 +154,7 @@ export default function PlanView({ onReview, go }: {
           <span><b style={{ color: "var(--ink)" }}>{studied.reviewsDone}</b> cards reviewed</span>
           <span><b style={{ color: "var(--ink)" }}>{fmtDur(studied.focusSec)}</b> focused</span>
           <span><b style={{ color: "var(--ink)" }}>{studied.pomodoros}</b> pomodoros</span>
-          <span className="ml-auto">{openCount} left of {items.length}</span>
+          <span className="ml-auto">{items.length > 0 ? `${openCount} left of ${items.length}` : "All clear"}</span>
         </div>
       )}
 
@@ -129,6 +164,10 @@ export default function PlanView({ onReview, go }: {
         <div className="card p-8 mt-4 text-center">
           <div className="font-semibold">Nothing scheduled — enjoy the clear day.</div>
           <div className="text-sm mt-1" style={{ color: "var(--ink-2)" }}>Add a custom task below or start learning something new.</div>
+          <div className="flex justify-center gap-2 mt-4 flex-wrap">
+            <button onClick={() => go("subjects")} className="btn-primary px-4 py-2 text-sm">Browse subjects</button>
+            <button onClick={onOpenCalendar} className="px-4 py-2 text-sm font-semibold rounded-xl" style={{ border: "1px solid var(--border)" }}>Open calendar</button>
+          </div>
         </div>
       ) : (
         <div className="grid md:grid-cols-2 gap-3 mt-4">
@@ -136,6 +175,7 @@ export default function PlanView({ onReview, go }: {
             const meta = QUADRANT_META[q];
             const st = QUAD_STYLE[q];
             const list = items.filter((i) => i.quadrant === q);
+            if (list.length === 0) return null;
             return (
               <section key={q} className="card p-4" style={{ borderTop: `3px solid ${st.border}` }} aria-label={meta.title}>
                 <div className="flex items-center gap-2">
@@ -144,25 +184,55 @@ export default function PlanView({ onReview, go }: {
                 </div>
                 <div className="mt-2 flex flex-col gap-2">
                   {list.map((it) => (
-                    <div key={it.id} className="p-2.5 rounded-xl flex items-start gap-2.5" style={{ background: "var(--bg)", border: "1px solid var(--border)", opacity: it.status === "done" ? 0.65 : 1 }}>
+                    <div key={it.id} className="p-2.5 rounded-xl flex flex-wrap items-start gap-x-2.5 gap-y-2" style={{ background: "var(--bg)", border: "1px solid var(--border)", opacity: it.status === "done" ? 0.65 : 1 }}>
                       <button onClick={() => toggle(it)} role="checkbox" aria-checked={it.status === "done"} aria-label={`Mark ${it.title} ${it.status === "done" ? "open" : "done"}`}
-                        className="w-5 h-5 mt-0.5 rounded-md grid place-items-center text-xs font-bold text-white shrink-0"
+                        className="w-5 h-5 mt-0.5 rounded-md grid place-items-center text-white shrink-0"
                         style={{ background: it.status === "done" ? "#22C55E" : "transparent", border: it.status === "done" ? "none" : "1.5px solid var(--ink-2)" }}>
-                        {it.status === "done" ? "✓" : ""}
+                        {it.status === "done" ? <Check size={12} strokeWidth={3.5} /> : ""}
                       </button>
-                      <div className="min-w-0 flex-1">
+                      <div className="min-w-0 flex-1 basis-40">
                         <div className={`text-sm font-semibold ${it.status === "done" ? "line-through" : ""}`}>{it.title}</div>
                         {it.detail && <div className="text-xs" style={{ color: "var(--ink-2)" }}>{it.detail}</div>}
                         {it.note && <div className="text-[11px] font-bold mt-0.5" style={{ color: st.color }}>{it.note}</div>}
+                        {editingId === it.id && (
+                          <div className="mt-2 flex flex-col gap-1.5">
+                            <input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} placeholder="Task title"
+                              className="w-full px-2.5 py-1.5 rounded-lg text-sm" style={{ border: "1px solid var(--border)", background: "var(--card)" }} aria-label="Edit task title" />
+                            <input value={editNote} onChange={(e) => setEditNote(e.target.value)} placeholder="Note (optional)"
+                              className="w-full px-2.5 py-1.5 rounded-lg text-xs" style={{ border: "1px solid var(--border)", background: "var(--card)" }} aria-label="Edit task note" />
+                            <div className="flex gap-1.5">
+                              <button onClick={() => saveEdit(it)} className="btn-primary px-3 py-1 text-xs">Save</button>
+                              <button onClick={() => setEditingId(null)} className="px-3 py-1 text-xs font-semibold rounded-lg" style={{ border: "1px solid var(--border)" }}>Cancel</button>
+                            </div>
+                            <p className="text-[11px]" style={{ color: "var(--ink-2)" }}>Edited tasks become yours — auto-adjust never deletes them.</p>
+                          </div>
+                        )}
                       </div>
-                      {it.status === "open" && it.kind !== "custom" && (
-                        <button onClick={() => startTask(it)} className="text-xs font-bold px-2.5 py-1.5 rounded-lg text-white shrink-0" style={{ background: "#7c3aed" }}>
-                          {it.kind === "learn" ? "Learn" : it.kind === "preview" ? "Peek" : "Start"}
+                      <div className="flex items-center gap-1.5 flex-wrap basis-full sm:basis-auto">
+                        {it.status === "open" && it.kind !== "custom" && (
+                          <button onClick={() => startTask(it)} className="text-xs font-bold px-2.5 py-1.5 rounded-lg text-white shrink-0" style={{ background: "#7c3aed" }}>
+                            {it.kind === "learn" ? "Learn" : it.kind === "preview" ? "Peek" : "Start"}
+                          </button>
+                        )}
+                        {it.status === "open" && (
+                          <button onClick={() => moveToTomorrow(it)} className="text-xs font-bold px-2.5 py-1.5 rounded-lg shrink-0" style={{ border: "1px solid var(--border)", color: "var(--ink-2)" }}>
+                            Tomorrow
+                          </button>
+                        )}
+                        <button
+                          onClick={() => {
+                            if (editingId === it.id) setEditingId(null);
+                            else { setEditTitle(it.title); setEditNote(it.note); setEditingId(it.id); }
+                          }}
+                          className="p-1.5 rounded-lg shrink-0" style={{ color: "var(--ink-2)" }}
+                          aria-label={`Edit ${it.title}`}
+                        >
+                          <Pencil size={13} />
                         </button>
-                      )}
-                      {it.source === "custom" && (
-                        <button onClick={() => remove(it)} className="text-xs font-bold shrink-0" style={{ color: "#EF4444" }} aria-label={`Delete ${it.title}`}>✕</button>
-                      )}
+                        {it.source === "custom" && (
+                          <button onClick={() => remove(it)} className="shrink-0" style={{ color: "#EF4444" }} aria-label={`Delete ${it.title}`}><X size={14} /></button>
+                        )}
+                      </div>
                     </div>
                   ))}
                   {list.length === 0 && <div className="text-xs py-2" style={{ color: "var(--ink-2)" }}>Zone clear.</div>}

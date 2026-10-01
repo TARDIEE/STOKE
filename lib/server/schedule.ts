@@ -43,8 +43,13 @@ function toItem(r: Record<string, unknown>): ScheduleItem {
 /**
  * Spread the student's chapters across the days left until the exam.
  *
+ * No single day demands a whole heavy chapter: each chapter is scheduled as
+ * its day-size subtopics (one per day, e.g. "Magnetism — EMI & Lenz's law"),
+ * falling back to weight-split parts for chapters without stored topics.
+ * Reviews still anchor to the chapter's final unit.
+ *
  * A real study day covers ~3 DIFFERENT subjects (hardest first), not one chapter:
- *  - First pass: up to 3 new chapters per day, each from a different subject,
+ *  - First pass: up to 3 new parts per day, each from a different subject,
  *    highest-weight (highest-yield) chapters first.
  *  - Spaced reviews: every learned chapter automatically returns after
  *    +1, +4, +11 and +25 days (expanding intervals — the core of spaced
@@ -74,47 +79,71 @@ export async function generateSchedule(userId: string, now: number): Promise<Sch
   const learnDays = Math.max(1, left - revisionDays);
   const today = dayStr(now);
 
-  // Queue chapters per subject, highest weight first (hard subjects first).
-  const queues = new Map<string, Record<string, unknown>[]>();
-  for (const c of chapters) {
-    const sid = String(c.subject_id);
+  // One learn unit per subtopic (one day each). Chapters without stored
+  // topics fall back to weight-split parts (1 part per ~2h of estimated work).
+  interface Unit { row: Record<string, unknown>; label: string }
+  const topicsOf = (c: Record<string, unknown>): string[] => {
+    try {
+      const t = JSON.parse(String(c.topics ?? "[]"));
+      return Array.isArray(t) ? t.filter((x): x is string => typeof x === "string" && x.length > 0) : [];
+    } catch {
+      return [];
+    }
+  };
+  const unitsFor = (c: Record<string, unknown>): Unit[] => {
+    const ts = topicsOf(c);
+    if (ts.length) return ts.map((t) => ({ row: c, label: t }));
+    const n = Math.max(1, Math.round(Number(c.weight ?? 3) * 0.75));
+    return Array.from({ length: n }, (_, i) => ({ row: c, label: n > 1 ? `Part ${i + 1}/${n}` : "" }));
+  };
+  const unitList: Unit[] = [];
+  for (const c of chapters) unitList.push(...unitsFor(c));
+
+  // Queue units per subject, highest weight first (hard subjects first).
+  // Stable sort keeps one chapter's units adjacent and in order.
+  const queues = new Map<string, Unit[]>();
+  for (const u of unitList) {
+    const sid = String(u.row.subject_id);
     if (!queues.has(sid)) queues.set(sid, []);
-    queues.get(sid)!.push(c);
+    queues.get(sid)!.push(u);
   }
-  for (const qq of queues.values()) qq.sort((a, b) => Number(b.weight ?? 3) - Number(a.weight ?? 3));
+  for (const qq of queues.values()) qq.sort((a, b) => Number(b.row.weight ?? 3) - Number(a.row.weight ?? 3));
 
   type Placed = { kind: "learn" | "review"; chapterId: string; subjectId: string; title: string };
   const days: Placed[][] = Array.from({ length: learnDays }, () => []);
   const learnOffset = new Map<string, number>();
-  const titleOf = (c: Record<string, unknown>) => {
-    const s = subName.get(String(c.subject_id)) ?? "";
-    return `Learn: ${s ? s + " · " : ""}${String(c.name)}`;
+  const titleOf = (u: Unit) => {
+    const s = subName.get(String(u.row.subject_id)) ?? "";
+    const base = `Learn: ${s ? s + " · " : ""}${String(u.row.name)}`;
+    return u.label ? `${base} — ${u.label}` : base;
   };
 
-  // First pass: deal up to 3 chapters/day from distinct subjects, hardest first.
-  let remaining = chapters.length;
+  // First pass: deal up to 3 units/day from distinct subjects, hardest first.
+  // Units of one chapter queue behind each other, so subtopics land on consecutive days.
+  let remaining = unitList.length;
   for (let d = 0; d < learnDays && remaining > 0; d++) {
     const order = [...queues.entries()]
       .filter(([, qq]) => qq.length > 0)
-      .sort((a, b) => Number(b[1][0].weight ?? 3) - Number(a[1][0].weight ?? 3));
+      .sort((a, b) => Number(b[1][0].row.weight ?? 3) - Number(a[1][0].row.weight ?? 3));
     const slots = Math.min(PER_DAY_TARGET, order.length, remaining);
     for (let k = 0; k < slots; k++) {
       const [, qq] = order[k];
-      const c = qq.shift()!;
+      const u = qq.shift()!;
       remaining--;
-      days[d].push({ kind: "learn", chapterId: String(c.id), subjectId: String(c.subject_id), title: titleOf(c) });
-      if (!learnOffset.has(String(c.id))) learnOffset.set(String(c.id), d);
+      days[d].push({ kind: "learn", chapterId: String(u.row.id), subjectId: String(u.row.subject_id), title: titleOf(u) });
+      // Last unit dealt wins: reviews anchor to chapter completion.
+      learnOffset.set(String(u.row.id), d);
     }
   }
-  // If chapters outnumber the days, pack the overflow onto the last days.
+  // If units outnumber the days, pack the overflow onto the last days.
   if (remaining > 0) {
     const flat = [...queues.values()].flat();
     let d = learnDays - 1;
-    for (const c of flat) {
+    for (const u of flat) {
       while (d >= 0 && days[d].length >= PER_DAY_MAX) d--;
       if (d < 0) d = learnDays - 1;
-      days[d].push({ kind: "learn", chapterId: String(c.id), subjectId: String(c.subject_id), title: titleOf(c) });
-      if (!learnOffset.has(String(c.id))) learnOffset.set(String(c.id), d);
+      days[d].push({ kind: "learn", chapterId: String(u.row.id), subjectId: String(u.row.subject_id), title: titleOf(u) });
+      learnOffset.set(String(u.row.id), d);
     }
   }
 

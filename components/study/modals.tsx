@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { CalendarDays, Check, Circle, Layers, Shapes, Timer } from "lucide-react";
 import { requestNotificationPermission, useStudy, type Flashcard } from "@/lib/study-store";
 import { Modal, type View } from "./shared";
 
@@ -10,10 +11,10 @@ export function QuickAdd({ close, onSubject, onChapter, onCard, go }: { close: (
     <Modal close={close} label="Quick add">
       <h3 className="font-bold text-lg">+ Add</h3>
       <div className="grid grid-cols-2 gap-2 mt-3">
-        <button onClick={onSubject} className="p-3 rounded-xl text-sm font-semibold text-left" style={{ border: "1px solid var(--border)" }}>▤<br />Subject</button>
-        <button onClick={onChapter} className="p-3 rounded-xl text-sm font-semibold text-left" style={{ border: "1px solid var(--border)" }}>▦<br />Chapter</button>
-        <button onClick={onCard} className="p-3 rounded-xl text-sm font-semibold text-left" style={{ border: "1px solid var(--border)" }}>🗎<br />Flashcard</button>
-        <button onClick={() => { const now = Date.now(); logSession({ subjectId: null, chapterId: null, start: now - 25 * 60000, end: now, durationSec: 25 * 60, kind: "focus", completed: true, label: "learn" }); pushToast({ title: "Study session logged", body: "25 min added." }); close(); }} className="p-3 rounded-xl text-sm font-semibold text-left" style={{ border: "1px solid var(--border)" }}>◷<br />Study session</button>
+        <button onClick={onSubject} className="p-3 rounded-xl text-sm font-semibold text-left flex flex-col gap-1.5" style={{ border: "1px solid var(--border)" }}><Shapes size={18} />Subject</button>
+        <button onClick={onChapter} className="p-3 rounded-xl text-sm font-semibold text-left flex flex-col gap-1.5" style={{ border: "1px solid var(--border)" }}><CalendarDays size={18} />Chapter</button>
+        <button onClick={onCard} className="p-3 rounded-xl text-sm font-semibold text-left flex flex-col gap-1.5" style={{ border: "1px solid var(--border)" }}><Layers size={18} />Flashcard</button>
+        <button onClick={() => { const now = Date.now(); logSession({ subjectId: null, chapterId: null, start: now - 25 * 60000, end: now, durationSec: 25 * 60, kind: "focus", completed: true, label: "learn" }); pushToast({ title: "Study session logged", body: "25 min added." }); close(); }} className="p-3 rounded-xl text-sm font-semibold text-left flex flex-col gap-1.5" style={{ border: "1px solid var(--border)" }}><Timer size={18} />Study session</button>
       </div>
       <button onClick={() => { go("pomodoro"); close(); }} className="btn-primary w-full py-2.5 text-sm mt-3">Start Pomodoro</button>
     </Modal>
@@ -44,9 +45,9 @@ export function SearchOverlay({ close, openSubject, openChapter, goReview }: {
         <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder='Search subjects, chapters, flashcards… e.g. "Newton"'
           className="w-full px-3 py-2.5 rounded-xl text-sm" style={{ border: "1px solid var(--border)", background: "var(--bg)" }} aria-label="Search" />
         <div className="mt-2 max-h-80 overflow-auto text-sm">
-          {res.s.map((x) => <button key={x.id} onClick={() => { openSubject(x.id); close(); }} className="w-full text-left px-2 py-2 rounded-lg hover:opacity-80">▤ {x.name}</button>)}
-          {res.c.map((x) => <button key={x.id} onClick={() => { openChapter(x.subjectId, x.id); close(); }} className="w-full text-left px-2 py-2 rounded-lg">▦ {x.name}</button>)}
-          {res.f.map((x) => <button key={x.id} onClick={() => { goReview(x.id); close(); }} className="w-full text-left px-2 py-2 rounded-lg">🗎 {x.front}<span className="block text-xs" style={{ color: "var(--ink-2)" }}>{x.back.slice(0, 80)}</span></button>)}
+          {res.s.map((x) => <button key={x.id} onClick={() => { openSubject(x.id); close(); }} className="w-full text-left px-2 py-2 rounded-lg hover:opacity-80 flex items-center gap-2"><Shapes size={15} className="shrink-0" /> {x.name}</button>)}
+          {res.c.map((x) => <button key={x.id} onClick={() => { openChapter(x.subjectId, x.id); close(); }} className="w-full text-left px-2 py-2 rounded-lg flex items-center gap-2"><CalendarDays size={15} className="shrink-0" /> {x.name}</button>)}
+          {res.f.map((x) => <button key={x.id} onClick={() => { goReview(x.id); close(); }} className="w-full text-left px-2 py-2 rounded-lg flex items-start gap-2"><Layers size={15} className="shrink-0 mt-0.5" /> <span>{x.front}<span className="block text-xs" style={{ color: "var(--ink-2)" }}>{x.back.slice(0, 80)}</span></span></button>)}
           {q && res.s.length + res.c.length + res.f.length === 0 && <div className="p-3 text-sm" style={{ color: "var(--ink-2)" }}>No results for “{q}”.</div>}
         </div>
       </div>
@@ -114,7 +115,7 @@ function AiGenerator({ topicDefault, chapterId, onAdd }: {
             <div className="mt-2 flex flex-col gap-1.5 max-h-56 overflow-auto">
               {suggestions.map((c, i) => (
                 <button key={i} onClick={() => togglePick(i)} className="text-left p-2 rounded-lg text-sm flex gap-2 items-start" style={{ border: picked.has(i) ? "1.5px solid #7C3AED" : "1px solid var(--border)", background: "var(--card)", opacity: picked.has(i) ? 1 : 0.6 }} aria-pressed={picked.has(i)}>
-                  <span className="font-bold" style={{ color: "#7C3AED" }}>{picked.has(i) ? "✓" : "○"}</span>
+                  <span className="font-bold" style={{ color: "#7C3AED" }}>{picked.has(i) ? <Check size={15} strokeWidth={3} /> : <Circle size={15} />}</span>
                   <span className="min-w-0"><b>{c.front}</b><span className="block text-xs" style={{ color: "var(--ink-2)" }}>{c.back.slice(0, 120)}</span></span>
                 </button>
               ))}

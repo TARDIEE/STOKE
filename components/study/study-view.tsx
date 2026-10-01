@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { X } from "lucide-react";
 import { fmtDur, useStudy, type Flashcard } from "@/lib/study-store";
 import type { View } from "./shared";
 import { CardModal } from "./modals";
@@ -138,7 +139,7 @@ function CardRow({ card }: { card: Flashcard }) {
         <div className="text-xs truncate" style={{ color: "var(--ink-2)" }}>{card.back} {r ? `· ${nextLabel(r.nextReviewAt)}` : ""}</div>
       </div>
       <button onClick={() => setEdit(true)} className="text-xs font-bold" style={{ color: "#7C3AED" }} aria-label={`Edit ${card.front}`}>Edit</button>
-      <button onClick={() => deleteCard(card.id)} className="text-xs font-bold" style={{ color: "#EF4444" }} aria-label={`Delete ${card.front}`}>✕</button>
+      <button onClick={() => deleteCard(card.id)} className="shrink-0" style={{ color: "#EF4444" }} aria-label={`Delete ${card.front}`}><X size={14} /></button>
     </div>
   );
 }

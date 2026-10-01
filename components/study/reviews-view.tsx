@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { CalendarDays, Target } from "lucide-react";
 import {
   previewIntervals, previewLabel, useDerived, useStudy,
   type Flashcard, type Grade,
@@ -146,7 +147,7 @@ export default function ReviewsView({ queue, pos, setPos, setQueue, showAnswer, 
       {!card && (
         <div className="grid md:grid-cols-2 gap-3 mt-3">
           <div className="card p-4">
-            <h3 className="font-bold text-sm">🎯 Weak spots</h3>
+            <h3 className="font-bold text-sm flex items-center gap-1.5"><Target size={14} /> Weak spots</h3>
             <p className="text-[11px]" style={{ color: "var(--ink-2)" }}>Cards you miss most — extra reps fix them fastest.</p>
             <div className="mt-2 flex flex-col gap-1.5">
               {weak.map((c) => (
@@ -160,7 +161,7 @@ export default function ReviewsView({ queue, pos, setPos, setQueue, showAnswer, 
             </div>
           </div>
           <div className="card p-4">
-            <h3 className="font-bold text-sm">📅 Coming up — next 7 days</h3>
+            <h3 className="font-bold text-sm flex items-center gap-1.5"><CalendarDays size={14} /> Coming up — next 7 days</h3>
             <div className="flex items-end gap-2 h-24 mt-3" role="img" aria-label="Review forecast">
               {forecast.map((f, i) => (
                 <div key={i} className="flex-1 flex flex-col items-center gap-1">

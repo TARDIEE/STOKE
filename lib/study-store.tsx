@@ -411,6 +411,17 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pomoRunning, targetEnd, pomoMode]);
 
+  // Apply saved pomo lengths to a fresh timer after bootstrap/login.
+  // (pomoTotal initializes to 25:00 and previously ignored stored settings
+  // until the user edited them, so custom times "didn't apply" on load.)
+  useEffect(() => {
+    if (pomoRunning || targetEnd || !data) return;
+    const total = modeSecs(pomoMode, data);
+    setPomoTotal((t) => (t === total ? t : total));
+    setPomoRemaining((r) => (r === total ? r : total));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, pomoMode, pomoRunning, targetEnd]);
+
   const modeSecs = useCallback((m: PomoMode, d: Persisted | null) => {
     if (!d) return 25 * 60;
     if (m === "focus") return d.pomo.focusMin * 60;

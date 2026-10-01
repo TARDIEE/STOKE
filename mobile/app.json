@@ -1,0 +1,36 @@
+{
+  "expo": {
+    "name": "Stoke",
+    "slug": "stoke-study",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/logo.jpeg",
+    "scheme": "stoke",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/logo.jpeg",
+      "resizeMode": "contain",
+      "backgroundColor": "#7c3aed"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.stoke.study"
+    },
+    "android": {
+      "package": "com.stoke.study",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/logo.jpeg",
+        "backgroundColor": "#7c3aed"
+      }
+    },
+    "plugins": [
+      "expo-router"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "webAppUrl": "http://192.168.18.111:3000"
+    }
+  }
+}

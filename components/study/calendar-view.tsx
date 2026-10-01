@@ -1,9 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Check, RotateCcw, X } from "lucide-react";
 import { dayKey, fmtDur, useStudy } from "@/lib/study-store";
 import { SessionRow } from "./shared";
 import Celebrate from "./celebrate";
+import TopicGuideModal from "./topic-guide-modal";
+import { parseItemTitle, progressKey } from "@/lib/topic-guides";
 
 interface SchedItem {
   id: string; day: string; kind: "learn" | "review" | "revision";
@@ -102,11 +105,7 @@ export default function CalendarView({ onOpenChapter, onReview, onReRead }: { on
       <h1 className="text-2xl font-bold">Calendar</h1>
       <p className="text-sm" style={{ color: "var(--ink-2)" }}>Your chapter plan, day by day, counting down to the exam.</p>
 
-      {exam ? (
-        <CountdownCard exam={exam} totalPlanned={cal?.totalPlanned ?? 0} totalDone={cal?.totalDone ?? 0} />
-      ) : (
-        <ExamSetup onSaved={load} />
-      )}
+      {!exam && <ExamSetup onSaved={load} />}
 
       {exam && (cal?.missed ?? 0) > 0 && (
         <div className="card p-4 mt-3 flex items-center gap-3 fade-in" style={{ borderColor: "#EF4444" }}>
@@ -161,7 +160,7 @@ export default function CalendarView({ onOpenChapter, onReview, onReRead }: { on
                       background: p.status === "done" ? "#22C55E22" : p.kind !== "learn" ? "#A78BFA22" : "color-mix(in srgb, var(--card) 85%, transparent)",
                       color: p.status === "done" ? "#16A34A" : intensity > 0.4 ? "#fff" : "var(--ink)",
                       textDecoration: p.status === "done" ? "line-through" : "none",
-                    }}>{p.kind === "learn" ? "" : "↻ "}{shortTitle(p.title)}</span>
+                    }}>{p.kind === "learn" ? null : <RotateCcw size={11} className="inline -mt-0.5" />}{shortTitle(p.title)}</span>
                   ))}
                   {dayPlan.length > 2 && <span className="text-[9px] font-bold" style={{ color: "var(--ink-2)" }}>+{dayPlan.length - 2} more</span>}
                 </div>
@@ -211,6 +210,33 @@ function DayTab({ day, items, stat, sessions, onClose, onToggle, onChanged, onOp
   const [aiBusy, setAiBusy] = useState(false);
   const [aiTried, setAiTried] = useState(false);
   const [revealed, setRevealed] = useState<Set<string>>(new Set());
+  const [guideFor, setGuideFor] = useState<SchedItem | null>(null);
+  // Per-subtopic checklist progress (server-saved): ticks persist across days.
+  const [progress, setProgress] = useState<Record<string, { learned: number[]; solved: number[] }>>({});
+
+  useEffect(() => {
+    fetch("/api/topic-progress")
+      .then((r) => r.json())
+      .then((b) => {
+        if (b.progress) setProgress(b.progress);
+      })
+      .catch(() => {});
+  }, [day]);
+
+  const saveProgress = (key: string, learned: number[], solved: number[]) => {
+    setProgress((prev) => ({ ...prev, [key]: { learned, solved } }));
+    fetch("/api/topic-progress", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ key, learned, solved }),
+    }).catch(() => {});
+  };
+
+  const progressOf = (title: string) => {
+    const parsed = parseItemTitle(title);
+    const key = progressKey(parsed.chapter, parsed.topic);
+    return { key, entry: progress[key] };
+  };
   const done = items.filter((i) => i.status === "done").length;
   const full = items.length > 0 && done === items.length;
   const isToday = day === dayKey(Date.now());
@@ -258,6 +284,23 @@ function DayTab({ day, items, stat, sessions, onClose, onToggle, onChanged, onOp
       })
       .catch(() => {});
   }, [day, items.length]);
+
+  const deferToTomorrow = async (it: SchedItem) => {
+    const t = new Date();
+    t.setDate(t.getDate() + 1);
+    const day = dayKey(t.getTime());
+    try {
+      await fetch("/api/schedule/move", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: it.id, day }),
+      });
+      pushToast({ title: "Moved to tomorrow", body: "No pressure — it will wait for you there." });
+      onChanged();
+    } catch {
+      pushToast({ title: "Couldn't move it — try again" });
+    }
+  };
 
   const moveHere = async () => {
     if (!pick) return;
@@ -308,7 +351,7 @@ function DayTab({ day, items, stat, sessions, onClose, onToggle, onChanged, onOp
         {full && !celebrated && <Celebrate title="Day complete — battery full!" onDone={() => setCelebrated(true)} />}
         <div className="flex items-center gap-2">
           <h3 className="font-bold text-lg">{new Date(day + "T12:00:00").toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}</h3>
-          <button onClick={onClose} className="ml-auto px-2.5 py-1 rounded-lg text-sm font-bold" style={{ border: "1px solid var(--border)" }} aria-label="Close day tab">✕</button>
+          <button onClick={onClose} className="ml-auto px-2.5 py-1 rounded-lg text-sm font-bold" style={{ border: "1px solid var(--border)" }} aria-label="Close day tab"><X size={14} /></button>
         </div>
         {stat && <div className="text-xs mt-1" style={{ color: "var(--ink-2)" }}>{fmtDur(stat.sec)} studied · {stat.pomos} pomodoros · {stat.reviews} reviews</div>}
 
@@ -321,25 +364,40 @@ function DayTab({ day, items, stat, sessions, onClose, onToggle, onChanged, onOp
 
         <div className="mt-3 flex flex-col gap-1.5">
           {items.map((p) => (
-            <div key={p.id} className="flex items-center gap-2 text-sm p-2.5 rounded-xl" style={{ border: "1px solid var(--border)", background: p.status === "done" ? "#22C55E11" : "var(--bg)" }}>
+            <div key={p.id} className="flex flex-wrap items-center gap-x-2 gap-y-2 text-sm p-2.5 rounded-xl" style={{ border: "1px solid var(--border)", background: p.status === "done" ? "#22C55E11" : "var(--bg)" }}>
               <button onClick={() => onToggle(p)} role="checkbox" aria-checked={p.status === "done"} aria-label={`Mark ${p.title} done`}
                 className="w-5 h-5 rounded-md grid place-items-center text-xs font-bold text-white shrink-0"
                 style={{ background: p.status === "done" ? "#22C55E" : "transparent", border: p.status === "done" ? "none" : "1.5px solid var(--ink-2)" }}>
-                {p.status === "done" ? "✓" : ""}
+                {p.status === "done" ? <Check size={12} strokeWidth={3.5} /> : ""}
               </button>
-              <div className="min-w-0 flex-1">
-                <div className={`font-medium ${p.status === "done" ? "line-through" : ""}`}>{p.title}</div>
-                <div className="text-[11px]" style={{ color: "var(--ink-2)" }}>{p.kind === "learn" ? "Learn" : p.kind === "review" ? "Spaced review" : "Revision"}</div>
+              <button onClick={() => setGuideFor(p)} className="min-w-0 flex-1 basis-40 text-left" aria-label={`Study guide: ${p.title}`}>
+                <div className={`font-medium underline decoration-dotted underline-offset-2 ${p.status === "done" ? "line-through" : ""}`}>{p.title}</div>
+                <div className="text-[11px]" style={{ color: "var(--ink-2)" }}>{p.kind === "learn" ? "Learn" : p.kind === "review" ? "Spaced review" : "Revision"} · tap for guide</div>
+              </button>
+              {(() => {
+                const { entry } = progressOf(p.title);
+                const n = (entry?.learned.length ?? 0) + (entry?.solved.length ?? 0);
+                if (!entry || n === 0 || p.status === "done") return null;
+                return (
+                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0" style={{ background: "var(--primary-bg)", color: "#6D28D9" }}>
+                    {n} ✓ kept
+                  </span>
+                );
+              })()}
+              <div className="flex items-center gap-1.5 flex-wrap basis-full sm:basis-auto">
+                {p.status === "open" && (
+                  <button onClick={() => deferToTomorrow(p)} className="text-xs font-bold px-2.5 py-1 rounded-lg shrink-0" style={{ border: "1px solid var(--border)", color: "var(--ink-2)" }}>Tomorrow</button>
+                )}
+                {p.chapterId && data && (
+                  <button onClick={() => { const ch = data.chapters.find((c) => c.id === p.chapterId); if (ch) onOpenChapter(ch.subjectId, ch.id); }} className="text-xs font-bold shrink-0" style={{ color: "#7C3AED" }}>Open</button>
+                )}
+                {p.status === "open" && p.kind === "review" && (
+                  <button onClick={() => onReview(p.subjectId || null, p.chapterId || null)} className="text-xs font-bold px-2.5 py-1 rounded-lg text-white shrink-0" style={{ background: "#7c3aed" }}>Review cards</button>
+                )}
+                {p.status === "open" && p.kind !== "learn" && (
+                  <button onClick={() => onReRead(p.subjectId || null, p.chapterId || null)} className="text-xs font-bold px-2.5 py-1 rounded-lg shrink-0" style={{ background: "#F59E0B22", color: "#F59E0B" }}>Re-read 25m</button>
+                )}
               </div>
-              {p.chapterId && data && (
-                <button onClick={() => { const ch = data.chapters.find((c) => c.id === p.chapterId); if (ch) onOpenChapter(ch.subjectId, ch.id); }} className="text-xs font-bold shrink-0" style={{ color: "#7C3AED" }}>Open</button>
-              )}
-              {p.status === "open" && p.kind === "review" && (
-                <button onClick={() => onReview(p.subjectId || null, p.chapterId || null)} className="text-xs font-bold px-2.5 py-1 rounded-lg text-white shrink-0" style={{ background: "#7c3aed" }}>Review cards</button>
-              )}
-              {p.status === "open" && p.kind !== "learn" && (
-                <button onClick={() => onReRead(p.subjectId || null, p.chapterId || null)} className="text-xs font-bold px-2.5 py-1 rounded-lg shrink-0" style={{ background: "#F59E0B22", color: "#F59E0B" }}>Re-read 25m</button>
-              )}
             </div>
           ))}
           {items.length === 0 && <div className="text-xs" style={{ color: "var(--ink-2)" }}>Nothing planned — pull a chapter in below.</div>}
@@ -361,7 +419,7 @@ function DayTab({ day, items, stat, sessions, onClose, onToggle, onChanged, onOp
           <div className="flex items-center gap-2">
             <div className="text-xs font-bold flex-1">✨ AI questions for this day</div>
             <button onClick={regenQuestions} disabled={aiBusy} className="text-[11px] font-bold px-2.5 py-1 rounded-lg shrink-0 disabled:opacity-50" style={{ background: "var(--primary-bg)", color: "#6D28D9" }}>
-              {aiBusy ? "Writing…" : questions.length ? "↻ New set" : "Generate"}
+              {aiBusy ? "Writing…" : questions.length ? <span className="inline-flex items-center gap-1"><RotateCcw size={13} /> New set</span> : "Generate"}
             </button>
           </div>
           <div className="text-[11px]" style={{ color: "var(--ink-2)" }}>
@@ -396,6 +454,25 @@ function DayTab({ day, items, stat, sessions, onClose, onToggle, onChanged, onOp
             </div>
           </div>
         )}
+
+        {guideFor && (
+          <TopicGuideModal
+            key={guideFor.id}
+            title={guideFor.title}
+            initialLearned={progressOf(guideFor.title).entry?.learned ?? []}
+            initialSolved={progressOf(guideFor.title).entry?.solved ?? []}
+            onProgress={(learned, solved) => saveProgress(progressOf(guideFor.title).key, learned, solved)}
+            close={() => setGuideFor(null)}
+            onMastered={() => {
+              onToggle(guideFor);
+              setGuideFor(null);
+            }}
+            onDefer={() => {
+              deferToTomorrow(guideFor);
+              setGuideFor(null);
+            }}
+          />
+        )}
       </div>
     </div>
   );
@@ -422,49 +499,6 @@ function shortTitle(t: string) {
 }
 
 /** Live ticking deadline countdown — days, hours, minutes, seconds. */
-function CountdownCard({ exam, totalPlanned, totalDone }: { exam: ExamInfo; totalPlanned: number; totalDone: number }) {
-  const [, tick] = useState(0);
-  useEffect(() => {
-    const iv = setInterval(() => tick((t) => t + 1), 1000);
-    return () => clearInterval(iv);
-  }, []);
-  const ms = Math.max(0, exam.date - Date.now());
-  const d = Math.floor(ms / 86400000);
-  const h = Math.floor((ms % 86400000) / 3600000);
-  const m = Math.floor((ms % 3600000) / 60000);
-  const s = Math.floor((ms % 60000) / 1000);
-  const urgent = d < 7;
-  const pct = totalPlanned ? Math.round((totalDone / totalPlanned) * 100) : 0;
-  return (
-    <div className="card p-5 mt-4 text-center" style={{ borderColor: urgent ? "#EF4444" : "#7C3AED", borderWidth: 2 }}>
-      <div className="text-xs font-bold uppercase tracking-[0.2em]" style={{ color: urgent ? "#EF4444" : "#7C3AED" }}>
-        🎯 {exam.name} · {new Date(exam.date).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
-      </div>
-      <div className="flex justify-center gap-3 md:gap-5 mt-3" role="timer" aria-label={`${d} days ${h} hours ${m} minutes left`}>
-        <TimeBox n={d} label="days" hot={urgent} />
-        <TimeBox n={h} label="hrs" hot={urgent} />
-        <TimeBox n={m} label="min" hot={urgent} />
-        <TimeBox n={s} label="sec" hot={urgent} />
-      </div>
-      <p className="text-xs mt-2 font-semibold" style={{ color: urgent ? "#EF4444" : "var(--ink-2)" }}>
-        {ms <= 0 ? "Exam day is here. Give it everything." : urgent ? "Final week. Every hour counts — no zero days." : "The clock is ticking. Small steps every day win."}
-      </p>
-      <div className="h-1.5 rounded-full mt-2 overflow-hidden" style={{ background: "var(--border)" }}>
-        <div className="h-full progress-anim" style={{ width: `${pct}%`, background: urgent ? "#EF4444" : "linear-gradient(90deg,#7C3AED,#A78BFA)" }} />
-      </div>
-      <div className="text-[11px] mt-1" style={{ color: "var(--ink-2)" }}>Syllabus plan: {totalDone}/{totalPlanned} done ({pct}%)</div>
-    </div>
-  );
-}
-
-function TimeBox({ n, label, hot }: { n: number; label: string; hot: boolean }) {
-  return (
-    <div className={`px-3 py-2 rounded-xl min-w-16 ${hot ? "pulse-ring rounded-xl" : ""}`} style={{ background: "var(--bg)", border: "1px solid var(--border)" }}>
-      <div className="text-2xl md:text-3xl font-bold timer-tabular" style={{ color: hot ? "#EF4444" : undefined }}>{String(n).padStart(2, "0")}</div>
-      <div className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "var(--ink-2)" }}>{label}</div>
-    </div>
-  );
-}
 
 function ExamSetup({ onSaved }: { onSaved: () => void }) {
   const { updateUser, pushToast } = useStudy();

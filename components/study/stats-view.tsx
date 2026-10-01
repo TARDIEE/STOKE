@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { RotateCcw } from "lucide-react";
 import { dayKey, fmtDur, useDerived, useStudy } from "@/lib/study-store";
 import { Dot, MiniStat } from "./shared";
 
@@ -89,7 +90,7 @@ export default function StatsView() {
           <div className="p-3 rounded-xl" style={{ background: "var(--bg)" }}><div className="font-bold">{sessions.filter((s) => s.completed && s.kind === "focus").length}</div><div className="text-[11px]" style={{ color: "var(--ink-2)" }}>Focus sessions</div></div>
           <div className="p-3 rounded-xl" style={{ background: "var(--bg)" }}><div className="font-bold">{d.totalDays}</div><div className="text-[11px]" style={{ color: "var(--ink-2)" }}>Study days</div></div>
         </div>
-        <div className="text-xs mt-2" style={{ color: "var(--ink-2)" }}>↻ Re-read (revision) time banked: <b style={{ color: "var(--ink)" }}>{fmtDur(rereadSec)}</b></div>
+        <div className="text-xs mt-2 flex items-center gap-1" style={{ color: "var(--ink-2)" }}><RotateCcw size={12} /> Re-read (revision) time banked: <b style={{ color: "var(--ink)" }}>{fmtDur(rereadSec)}</b></div>
       </div>
     </div>
   );

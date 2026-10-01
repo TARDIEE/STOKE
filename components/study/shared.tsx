@@ -10,9 +10,8 @@ export type View =
   | "reviews"
   | "pomodoro"
   | "subjects"
-  | "calendar"
   | "stats"
-  | "settings";
+  | "profile";
 
 export function greeting() {
   const h = new Date().getHours();

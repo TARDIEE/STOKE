@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo } from "react";
+import { PartyPopper } from "lucide-react";
 
 const COLORS = ["#7C3AED", "#A78BFA", "#22C55E", "#F59E0B", "#0EA5E9", "#EF4444"];
 
@@ -44,8 +45,8 @@ export default function Celebrate({ title = "Done!", onDone }: { title?: string;
           />
         ))}
       </div>
-      <div className="celebrate-pop absolute px-6 py-3 rounded-2xl font-bold text-lg text-white" style={{ background: "linear-gradient(135deg,#7C3AED,#5B21B6)" }}>
-        🎉 {title}
+      <div className="celebrate-pop absolute px-6 py-3 rounded-2xl font-bold text-lg text-white flex items-center gap-2" style={{ background: "linear-gradient(135deg,#7C3AED,#5B21B6)" }}>
+        <PartyPopper size={20} /> {title}
       </div>
     </div>
   );

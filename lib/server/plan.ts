@@ -1,5 +1,6 @@
 import { batch, q } from "./db";
 import { uid } from "./util";
+import { listSchedule } from "./schedule";
 
 export type Quadrant = "q1" | "q2" | "q3" | "q4";
 export type TaskKind = "review" | "learn" | "preview" | "custom";
@@ -193,6 +194,53 @@ export async function ensureTodayPlan(userId: string, now: number, force = false
         note: "Stays until due", quadrant: "q4", count: upcoming.length, score: 5,
       });
     }
+  }
+
+  // The calendar schedule: today's + missed chapter items, so students who
+  // learn chapters (not just flashcards) always get a plan.
+  const covered = new Set(cands.map((c) => `${c.kind}:${c.refId}`));
+  let sched: Awaited<ReturnType<typeof listSchedule>> = [];
+  try {
+    sched = await listSchedule(userId);
+  } catch { /* offline — cards-only plan */ }
+  for (const s of sched) {
+    if (s.status !== "open") continue;
+    const isPast = s.day < today;
+    if (!isPast && s.day !== today) continue;
+    const kind: TaskKind = s.kind === "learn" ? "learn" : "review";
+    if (s.chapterId && covered.has(`${kind}:${s.chapterId}`)) continue;
+    cands.push({
+      kind,
+      refId: s.chapterId,
+      refSubject: s.subjectId,
+      title: s.title,
+      detail: isPast ? `Scheduled ${s.day} · missed` : "On today's calendar",
+      note: isPast ? "Missed — still open" : s.kind === "revision" ? "Revision day" : "Scheduled today",
+      quadrant: isPast ? "q1" : "q2",
+      count: 0,
+      score: isPast ? 120 : 55,
+    });
+    if (s.chapterId) covered.add(`${kind}:${s.chapterId}`);
+  }
+
+  // Chapters with no cards and nothing scheduled: suggest starting them
+  // (otherwise a chapter-only student stares at an empty plan).
+  for (const ch of chapters) {
+    const cid = String(ch.id);
+    if (cards.some((c) => String(c.chapter_id) === cid)) continue;
+    if (cands.some((c) => c.refId === cid)) continue;
+    const sid = String(ch.subject_id);
+    cands.push({
+      kind: "learn",
+      refId: cid,
+      refSubject: sid,
+      title: `Learn: ${groupTitle(cid, sid)}`,
+      detail: "New chapter · start with a 25-min session",
+      note: "New chapter",
+      quadrant: "q2",
+      count: 0,
+      score: 40,
+    });
   }
 
   // Max 2 per quadrant → 8 total. Highest score wins each zone.

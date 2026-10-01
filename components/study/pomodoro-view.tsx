@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { BookOpen, RotateCcw } from "lucide-react";
 import { fmtClock, fmtDur, useDerived, useStudy } from "@/lib/study-store";
 import { NumField, SessionRow, Toggle, type View } from "./shared";
 
@@ -78,12 +79,12 @@ export default function PomodoroView({ go }: { go: (v: View) => void }) {
         <button onClick={() => setPomoLabel("learn")} aria-pressed={pomoLabel === "learn"}
           className={`px-4 py-1.5 rounded-full text-xs font-bold ${pomoLabel === "learn" ? "text-white" : ""}`}
           style={pomoLabel === "learn" ? { background: "#7C3AED" } : { border: "1px solid var(--border)", color: "var(--ink-2)" }}>
-          📖 Learn new
+          <span className="inline-flex items-center gap-1"><BookOpen size={13} /> Learn new</span>
         </button>
         <button onClick={() => setPomoLabel("reread")} aria-pressed={pomoLabel === "reread"}
           className={`px-4 py-1.5 rounded-full text-xs font-bold ${pomoLabel === "reread" ? "text-white" : ""}`}
           style={pomoLabel === "reread" ? { background: "#F59E0B" } : { border: "1px solid var(--border)", color: "var(--ink-2)" }}>
-          ↻ Re-read (revision)
+          <span className="inline-flex items-center gap-1"><RotateCcw size={13} /> Re-read (revision)</span>
         </button>
       </div>
       {pomoLabel === "reread" && (

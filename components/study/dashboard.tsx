@@ -1,7 +1,9 @@
 "use client";
 
+import { Play, Target } from "lucide-react";
 import { fmtDur, useDerived, useStudy } from "@/lib/study-store";
 import { Dot, Empty, SessionRow, Urgency, greeting, type View } from "./shared";
+import ExamCountdown from "./exam-countdown";
 
 export default function Dashboard({ onReview, go, openSubject }: {
   onReview: (s?: string | null, c?: string | null) => void;
@@ -11,6 +13,10 @@ export default function Dashboard({ onReview, go, openSubject }: {
   const { data } = useStudy();
   const d = useDerived();
   if (!data) return null;
+  // The single most overdue concept — today's starting point, one concept only.
+  const firstDue = d.dueCards[0];
+  const firstDueChapter = firstDue ? data.chapters.find((c) => c.id === firstDue.chapterId) : null;
+  const firstDueSubject = firstDue ? data.subjects.find((s) => s.id === firstDue.subjectId) : null;
   const rec = d.overdue > 0
     ? `Start with ${d.overdue} overdue card${d.overdue > 1 ? "s" : ""}.`
     : d.dueToday > 0 ? `${d.dueToday} review${d.dueToday > 1 ? "s" : ""} due today — clear them first.` : "You're caught up. Bank some focus time.";
@@ -18,7 +24,7 @@ export default function Dashboard({ onReview, go, openSubject }: {
     <div>
       <h1 className="text-2xl md:text-3xl font-bold tracking-tight">{greeting()}, {data.user.name || "Student"}</h1>
       <p className="text-sm mt-1" style={{ color: "var(--ink-2)" }}>Let&apos;s make today&apos;s study session count. {rec}</p>
-      {data.user.examDate > Date.now() && <ExamChip go={go} />}
+      <ExamCountdown />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-5">
         <StatCard label="Reviews Due" value={String(d.dueToday)} sub={d.overdue ? `${d.overdue} overdue` : "Due today"} action={() => onReview()} actionLabel="Start Review" />
@@ -34,6 +40,17 @@ export default function Dashboard({ onReview, go, openSubject }: {
           <button onClick={() => onReview()} className="btn-primary px-4 py-2 text-sm">Start Review</button>
         </div>
         <button onClick={() => go("plan")} className="text-xs font-bold mt-1" style={{ color: "#7C3AED" }}>Open the auto-adjusted 4-zone to-do list →</button>
+        {firstDue && (
+          <button onClick={() => onReview(firstDue.subjectId)} className="w-full text-left p-3 rounded-xl mt-3 flex items-center gap-3 text-white" style={{ background: "linear-gradient(135deg,#7C3AED,#5B21B6)" }}>
+            <span className="w-9 h-9 rounded-full grid place-items-center shrink-0" style={{ background: "rgba(255,255,255,.2)" }}>
+              <Play size={16} className="ml-0.5" />
+            </span>
+            <span className="min-w-0">
+              <span className="block text-[11px] font-bold uppercase tracking-widest opacity-80">Start with this one concept</span>
+              <span className="block font-bold truncate">{firstDueSubject?.name}{firstDueChapter ? ` — ${firstDueChapter.name}` : ""}</span>
+            </span>
+          </button>
+        )}
         {d.plan.filter((p) => p.due > 0).length === 0 ? (
           <Empty title="You're all caught up." body="Nothing needs reviewing right now." action={() => go("subjects")} actionLabel="Browse subjects" />
         ) : (
@@ -104,7 +121,7 @@ function GoalBar({ go }: { go: (v: View) => void }) {
   return (
     <button onClick={() => go("pomodoro")} className="card p-4 mt-3 w-full text-left" aria-label={`Daily goal ${doneMin} of ${goalMin} minutes`}>
       <div className="flex justify-between text-xs" style={{ color: "var(--ink-2)" }}>
-        <span className="font-bold" style={{ color: "var(--ink)" }}>🎯 Daily goal: {doneMin}/{goalMin} min</span>
+        <span className="font-bold flex items-center gap-1.5" style={{ color: "var(--ink)" }}><Target size={14} /> Daily goal: {doneMin}/{goalMin} min</span>
         <span>{pct >= 100 ? "Goal smashed!" : `${pct}%`}</span>
       </div>
       <div className="h-2 rounded-full mt-2 overflow-hidden" style={{ background: "var(--border)" }}>
@@ -114,15 +131,3 @@ function GoalBar({ go }: { go: (v: View) => void }) {
   );
 }
 
-function ExamChip({ go }: { go: (v: View) => void }) {
-  const { data } = useStudy();
-  if (!data || !data.user.examDate) return null;
-  const ms = Math.max(0, data.user.examDate - Date.now());
-  const d = Math.floor(ms / 86400000);
-  const h = Math.floor((ms % 86400000) / 3600000);
-  return (
-    <button onClick={() => go("calendar")} className="mt-3 inline-flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-bold" style={{ background: d < 7 ? "#EF44441a" : "var(--primary-bg)", color: d < 7 ? "#EF4444" : "#6D28D9" }}>
-      🎯 {data.user.examName || "Exam"} · {d}d {h}h left →
-    </button>
-  );
-}
