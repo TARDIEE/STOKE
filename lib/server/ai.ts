@@ -41,7 +41,10 @@ export async function getAiKey(userId: string, db: Client): Promise<string> {
   return (row?.ai_key || process.env.GROQ_API_KEY || "").trim();
 }
 
-export async function generateCards(topic: string, count: number, key: string, chapterName?: string): Promise<AiCard[]> {
+export async function generateCards(topic: string, count: number, key: string, chapterName?: string, notes?: string): Promise<AiCard[]> {
+  const source = notes?.trim()
+    ? ` Base the cards ONLY on the following study notes — do not add facts outside them: """${notes.trim().slice(0, 2000)}"""`
+    : "";
   const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
@@ -57,7 +60,7 @@ export async function generateCards(topic: string, count: number, key: string, c
         },
         {
           role: "user",
-          content: `Create ${count} flashcards for studying "${topic}"${chapterName ? ` (chapter: ${chapterName})` : ""}. Mix definitions, key formulas/facts, and one application question. Keep fronts under 140 characters and backs under 300 characters.`,
+          content: `Create ${count} flashcards for studying "${topic}"${chapterName ? ` (chapter: ${chapterName})` : ""}. Mix definitions, key formulas/facts, and one application question. Keep fronts under 140 characters and backs under 300 characters.${source}`,
         },
       ],
     }),
@@ -73,4 +76,36 @@ export async function generateCards(topic: string, count: number, key: string, c
 
 export function aiModelName() {
   return MODEL;
+}
+
+/**
+ * Keyless fallback (free community inference): same card contract as Groq,
+ * used automatically when the student has no API key, so AI generation
+ * works out of the box with zero setup.
+ */
+export async function generateCardsOpen(topic: string, count: number, chapterName?: string, notes?: string): Promise<AiCard[]> {
+  const source = notes?.trim()
+    ? ` Base the cards ONLY on the following study notes — do not add facts outside them: """${notes.trim().slice(0, 2000)}"""`
+    : "";
+  const prompt =
+    `Create ${count} flashcards for studying "${topic}"${chapterName ? ` (chapter: ${chapterName})` : ""}. ` +
+    `Mix definitions, key formulas/facts, and one application question. Keep fronts under 140 characters and backs under 300 characters.${source} ` +
+    `Do not ask clarifying questions. Output ONLY a JSON object shaped {"cards": [{"front": "question", "back": "concise answer"}]}. No markdown, no extra text.`;
+  let lastErr: unknown = null;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const res = await fetch(`https://text.pollinations.ai/${encodeURIComponent(prompt)}`, {
+        signal: AbortSignal.timeout(60000),
+        headers: { Accept: "text/plain" },
+      });
+      if (!res.ok) throw new Error(`Open AI service error (${res.status}).`);
+      const text = await res.text();
+      const cards = extractCards(text).slice(0, count);
+      if (cards.length) return cards;
+      lastErr = new Error("Open AI returned nothing usable.");
+    } catch (e) {
+      lastErr = e;
+    }
+  }
+  throw lastErr instanceof Error ? lastErr : new Error("Open AI failed.");
 }

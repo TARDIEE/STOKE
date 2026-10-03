@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { batch, q, q1 } from "@/lib/server/db";
 import { currentUser } from "@/lib/server/auth";
-import { aiModelName, generateCards, getAiKey } from "@/lib/server/ai";
+import { aiModelName, generateCards, generateCardsOpen, getAiKey } from "@/lib/server/ai";
 import { getDb } from "@/lib/server/db";
 import { uid } from "@/lib/server/util";
 
@@ -49,11 +49,7 @@ export async function POST(req: Request) {
 
   const db = getDb();
   const key = await getAiKey(user.id, db);
-  if (!key) {
-    return NextResponse.json({
-      error: "AI is not set up yet. Get a free key at console.groq.com and paste it in Settings → AI generation.",
-    }, { status: 501 });
-  }
+  const useOpen = !key;
 
   // That day's scheduled chapters (learn + review), highest priority first.
   const items = await q(
@@ -83,7 +79,9 @@ export async function POST(req: Request) {
     const made: (DayQuestion & { created: number })[] = [];
     for (const t of targets) {
       const topic = `${String(t.subjectName || "")} — ${String(t.chapterName || t.chapterId)}`.replace(/^— /, "");
-      const cards = await generateCards(topic, QUESTIONS_PER_CHAPTER, key, String(t.chapterName || ""));
+      const cards = useOpen
+        ? await generateCardsOpen(topic, QUESTIONS_PER_CHAPTER, String(t.chapterName || ""))
+        : await generateCards(topic, QUESTIONS_PER_CHAPTER, key, String(t.chapterName || ""));
       const now = Date.now();
       for (const c of cards) {
         made.push({

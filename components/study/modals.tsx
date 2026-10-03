@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { CalendarDays, Check, Circle, Layers, Shapes, Timer } from "lucide-react";
+import { CalendarDays, Check, Circle, Layers, Shapes, Sparkles, Timer, Zap } from "lucide-react";
 import { requestNotificationPermission, useStudy, type Flashcard } from "@/lib/study-store";
 import { Modal, type View } from "./shared";
 
@@ -56,35 +56,62 @@ export function SearchOverlay({ close, openSubject, openChapter, goReview }: {
 }
 
 /** AI flashcard generator (Meta Llama, free via Groq). Preview, pick, add. */
-function AiGenerator({ topicDefault, chapterId, onAdd }: {
-  topicDefault: string; chapterId: string;
+function AiGenerator({ topicDefault, chapterId, sourceNotes, onAdd }: {
+  topicDefault: string; chapterId: string; sourceNotes?: string;
   onAdd: (cards: { front: string; back: string }[]) => void;
 }) {
-  const { pushToast } = useStudy();
+  const { data, pushToast } = useStudy();
   const [open, setOpen] = useState(false);
   const [topic, setTopic] = useState(topicDefault);
   const [count, setCount] = useState(5);
   const [busy, setBusy] = useState(false);
   const [suggestions, setSuggestions] = useState<{ front: string; back: string }[]>([]);
   const [picked, setPicked] = useState<Set<number>>(new Set());
+  // Inline AI setup: no key → paste it here instead of hunting Settings.
+  const [needKey, setNeedKey] = useState(false);
+  const [key, setKey] = useState("");
+  const [savingKey, setSavingKey] = useState(false);
 
-  const generate = async () => {
+  const generate = async (fromNotes = false) => {
     if (!topic.trim()) { pushToast({ title: "Describe the topic first" }); return; }
     setBusy(true);
     setSuggestions([]);
     try {
       const res = await fetch("/api/ai/flashcards", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ topic: topic.trim(), count, chapterId }),
+        body: JSON.stringify({ topic: topic.trim(), count, chapterId, notes: fromNotes ? sourceNotes : undefined }),
       });
       const body = await res.json();
-      if (!res.ok) throw new Error(body?.error || "Generation failed.");
+      if (!res.ok) {
+        if (res.status === 501 || (res.status === 502 && /busy/i.test(String(body?.error ?? "")))) setNeedKey(true);
+        throw new Error(body?.error || "Generation failed.");
+      }
+      setNeedKey(false);
       setSuggestions(body.cards);
       setPicked(new Set(body.cards.map((_: unknown, i: number) => i)));
     } catch (e) {
       pushToast({ title: "AI generation failed", body: e instanceof Error ? e.message : undefined });
     }
     setBusy(false);
+  };
+
+  const saveKeyAndRetry = async () => {
+    if (!key.trim()) return;
+    setSavingKey(true);
+    try {
+      const res = await fetch("/api/settings", {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user: { aiKey: key.trim() } }),
+      });
+      if (!res.ok) throw new Error();
+      setKey("");
+      setNeedKey(false);
+      pushToast({ title: "AI key saved — generating" });
+      await generate();
+    } catch {
+      pushToast({ title: "Couldn't save the key" });
+    }
+    setSavingKey(false);
   };
 
   const togglePick = (i: number) => {
@@ -99,18 +126,37 @@ function AiGenerator({ topicDefault, chapterId, onAdd }: {
   return (
     <div className="mt-3 rounded-xl" style={{ border: "1px solid var(--border)", background: "var(--bg)" }}>
       <button onClick={() => setOpen(!open)} className="w-full text-left px-3 py-2.5 text-sm font-bold" aria-expanded={open}>
-        ✨ Generate with AI <span className="font-normal" style={{ color: "var(--ink-2)" }}>— Llama makes the cards for you</span>
+        <span className="inline-flex items-center gap-1.5"><Sparkles size={14} /> Generate with AI</span> <span className="font-normal" style={{ color: "var(--ink-2)" }}>— Llama makes the cards for you</span>
       </button>
       {open && (
         <div className="px-3 pb-3">
+          {needKey && !data?.user.hasAiKey && (
+            <div className="p-2.5 rounded-xl mb-2" style={{ background: "var(--primary-bg)", border: "1px solid var(--border)" }}>
+              <div className="text-xs font-bold" style={{ color: "#6D28D9" }}>Built-in AI is struggling — a free Groq key makes it reliable.</div>
+              <div className="text-[11px] mt-0.5" style={{ color: "var(--ink-2)" }}>Free at console.groq.com → API keys. Paste it here, once.</div>
+              <div className="flex gap-2 mt-2">
+                <input value={key} onChange={(e) => setKey(e.target.value)} placeholder="gsk_… paste key" type="password"
+                  onKeyDown={(e) => { if (e.key === "Enter" && key.trim()) saveKeyAndRetry(); }}
+                  className="flex-1 min-w-0 px-3 py-2 rounded-xl text-sm" style={{ border: "1px solid var(--border)", background: "var(--card)" }} aria-label="Groq API key" autoComplete="off" />
+                <button onClick={saveKeyAndRetry} disabled={savingKey || !key.trim()} className="btn-primary px-4 py-2 text-sm shrink-0 disabled:opacity-50">
+                  {savingKey ? "…" : "Save & Go"}
+                </button>
+              </div>
+            </div>
+          )}
           <div className="flex gap-2">
             <input value={topic} onChange={(e) => setTopic(e.target.value)} placeholder="e.g. Newton's laws of motion"
               className="flex-1 min-w-0 px-3 py-2 rounded-xl text-sm" style={{ border: "1px solid var(--border)", background: "var(--card)" }} aria-label="AI topic" />
             <select value={count} onChange={(e) => setCount(Number(e.target.value))} className="px-2 py-2 rounded-xl text-sm" style={{ border: "1px solid var(--border)", background: "var(--card)" }} aria-label="Card count">
               {[3, 5, 8, 10].map((n) => <option key={n} value={n}>{n}</option>)}
             </select>
-            <button onClick={generate} disabled={busy} className="btn-primary px-4 py-2 text-sm shrink-0 disabled:opacity-50">{busy ? "…" : "Go"}</button>
+            <button onClick={() => generate(false)} disabled={busy} className="btn-primary px-4 py-2 text-sm shrink-0 disabled:opacity-50">{busy ? "…" : "Go"}</button>
           </div>
+          {sourceNotes?.trim() ? (
+            <button onClick={() => generate(true)} disabled={busy} className="w-full mt-2 px-3 py-2 rounded-xl text-xs font-bold disabled:opacity-50" style={{ background: "var(--primary-bg)", color: "#6D28D9" }}>
+              {busy ? "Reading notes…" : "Generate from my chapter notes instead"}
+            </button>
+          ) : null}
           {suggestions.length > 0 && (
             <div className="mt-2 flex flex-col gap-1.5 max-h-56 overflow-auto">
               {suggestions.map((c, i) => (
@@ -135,6 +181,36 @@ function AiGenerator({ topicDefault, chapterId, onAdd }: {
   );
 }
 
+/** One-tap full chapter set: cards for every subtopic (up to 20). */
+function BulkChapterButton({ chapterId, chapterName, onAdd }: {
+  chapterId: string; chapterName: string;
+  onAdd: (cards: { front: string; back: string }[], info: { failed: number; topics: number }) => void;
+}) {
+  const { pushToast } = useStudy();
+  const [busy, setBusy] = useState("");
+  const run = async () => {
+    setBusy("Starting…");
+    try {
+      const res = await fetch("/api/ai/flashcards/bulk", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chapterId, perTopic: 2 }),
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body?.error || "Bulk generation failed.");
+      setBusy("");
+      onAdd(body.cards, { failed: body.failed ?? 0, topics: body.topics ?? 0 });
+    } catch (e) {
+      setBusy("");
+      pushToast({ title: "Bulk generation failed", body: e instanceof Error ? e.message : undefined });
+    }
+  };
+  return (
+    <button onClick={run} disabled={!!busy} className="w-full mt-2 px-3 py-2.5 rounded-xl text-sm font-bold disabled:opacity-60 flex items-center justify-center gap-1.5" style={{ background: "linear-gradient(135deg,#7C3AED,#5B21B6)", color: "#fff" }}>
+      <Zap size={15} /> {busy || `Full chapter set — ${chapterName || "all subtopics"}`}
+    </button>
+  );
+}
+
 export function CardModal({ editId, subjectId, chapterId, close, inline }: { editId?: string; subjectId?: string; chapterId?: string; close: () => void; inline?: boolean }) {
   const { data, addCard, addCards, updateCard, pushToast } = useStudy();
   const existing = editId ? data?.cards.find((c) => c.id === editId) : undefined;
@@ -152,15 +228,32 @@ export function CardModal({ editId, subjectId, chapterId, close, inline }: { edi
     <>
       <h3 className="font-bold text-lg">{existing ? "Edit flashcard" : "New flashcard"}</h3>
       {!existing && (
-        <AiGenerator
-          topicDefault={activeChapter ? `${data.subjects.find((s) => s.id === sid)?.name ?? ""} — ${activeChapter.name}` : ""}
-          chapterId={cid}
-          onAdd={(cards) => {
-            addCards(cards.map((c) => ({ subjectId: sid, chapterId: cid || chapters[0]?.id || "", front: c.front, back: c.back, tags: ["ai"], notes: "" })));
-            pushToast({ title: `${cards.length} AI cards added`, body: "Scheduled for review today." });
-            close();
-          }}
-        />
+        <>
+          <AiGenerator
+            topicDefault={activeChapter ? `${data.subjects.find((s) => s.id === sid)?.name ?? ""} — ${activeChapter.name}` : ""}
+            chapterId={cid}
+            sourceNotes={chapters.find((c) => c.id === cid)?.notes}
+            onAdd={(cards) => {
+              addCards(cards.map((c) => ({ subjectId: sid, chapterId: cid || chapters[0]?.id || "", front: c.front, back: c.back, tags: ["ai"], notes: "" })));
+              pushToast({ title: `${cards.length} AI cards added`, body: "Scheduled for review today." });
+              close();
+            }}
+          />
+          <BulkChapterButton
+            chapterId={cid || chapters[0]?.id || ""}
+            chapterName={activeChapter?.name ?? ""}
+            onAdd={(cards, info) => {
+              addCards(cards.map((c) => ({ subjectId: sid, chapterId: cid || chapters[0]?.id || "", front: c.front, back: c.back, tags: ["ai"], notes: "" })));
+              pushToast({
+                title: `${cards.length} AI cards added`,
+                body: info.failed > 0
+                  ? `${info.failed} subtopic(s) skipped while busy — the rest are covered.`
+                  : "Full chapter coverage — scheduled for review today.",
+              });
+              close();
+            }}
+          />
+        </>
       )}
       <label className="text-xs font-medium block mt-3">Front — question<textarea value={front} onChange={(e) => setFront(e.target.value)} rows={2} placeholder="Write your question…" className="w-full mt-1 px-3 py-2 rounded-xl text-sm" style={{ border: "1px solid var(--border)", background: "var(--bg)" }} aria-label="Card front" /></label>
       <label className="text-xs font-medium block mt-2">Back — answer<textarea value={back} onChange={(e) => setBack(e.target.value)} rows={2} placeholder="Write your answer…" className="w-full mt-1 px-3 py-2 rounded-xl text-sm" style={{ border: "1px solid var(--border)", background: "var(--bg)" }} aria-label="Card back" /></label>

@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { CalendarDays, Target } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { CalendarDays, ListChecks, Target } from "lucide-react";
 import {
   previewIntervals, previewLabel, useDerived, useStudy,
   type Flashcard, type Grade,
@@ -18,6 +18,7 @@ export default function ReviewsView({ queue, pos, setPos, setQueue, showAnswer, 
   const d = useDerived();
   const [done, setDone] = useState(0);
   const [celebrated, setCelebrated] = useState(false);
+  const [quiz, setQuiz] = useState(false);
   const card: Flashcard | undefined = queue.length && data ? data.cards.find((c) => c.id === queue[Math.min(pos, queue.length - 1)]) : undefined;
   const review = card && data ? data.reviews[card.id] : undefined;
   const finished = !card && done > 0;
@@ -57,6 +58,31 @@ export default function ReviewsView({ queue, pos, setPos, setQueue, showAnswer, 
       if (pos >= rest.length) setPos(0);
     }
   };
+
+  // Quiz distractors: backs of sibling cards, same subject first.
+  const quizOptions = useMemo(() => {
+    if (!card || !data) return [];
+    const seen = new Set([card.back.trim()]);
+    const pool: string[] = [];
+    const ordered = [
+      ...data.cards.filter((c) => c.subjectId === card.subjectId && c.id !== card.id),
+      ...data.cards.filter((c) => c.subjectId !== card.subjectId && c.id !== card.id),
+    ];
+    for (const c of ordered) {
+      const b = c.back.trim();
+      if (b && !seen.has(b)) {
+        seen.add(b);
+        pool.push(c.back);
+        if (pool.length >= 3) break;
+      }
+    }
+    const all = [card.back, ...pool];
+    for (let i = all.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [all[i], all[j]] = [all[j], all[i]];
+    }
+    return all;
+  }, [card, data]);
 
   if (!data) return null;
 
@@ -122,6 +148,16 @@ export default function ReviewsView({ queue, pos, setPos, setQueue, showAnswer, 
           <div className="h-1.5 rounded-full mt-2 overflow-hidden" style={{ background: "var(--border)" }}>
             <div className="h-full progress-anim" style={{ width: `${(done / Math.max(1, done + queue.length)) * 100}%`, background: "#7c3aed" }} />
           </div>
+          <div className="flex justify-center mt-3">
+            <div className="inline-flex p-1 rounded-full" style={{ background: "var(--bg)", border: "1px solid var(--border)" }} role="tablist" aria-label="Review mode">
+              <button role="tab" aria-selected={!quiz} onClick={() => setQuiz(false)} className={`px-4 py-1.5 rounded-full text-xs font-bold ${!quiz ? "text-white" : ""}`} style={!quiz ? { background: "#7c3aed" } : { color: "var(--ink-2)" }}>Flip</button>
+              <button role="tab" aria-selected={quiz} onClick={() => setQuiz(true)} className={`px-4 py-1.5 rounded-full text-xs font-bold inline-flex items-center gap-1 ${quiz ? "text-white" : ""}`} style={quiz ? { background: "#7c3aed" } : { color: "var(--ink-2)" }}><ListChecks size={13} /> Quiz</button>
+            </div>
+          </div>
+          {quiz ? (
+            <QuizPanel key={card.id} card={card} options={quizOptions} onResult={(ok) => answer(ok ? "good" : "again")} />
+          ) : (
+          <>
           <ReviewCard key={card.id} card={card} showAnswer={showAnswer} />
           {!showAnswer ? (
             <button onClick={() => setShowAnswer(true)} className="btn-primary w-full py-3 text-sm mt-5" autoFocus>Show Answer (Space)</button>
@@ -140,6 +176,8 @@ export default function ReviewsView({ queue, pos, setPos, setQueue, showAnswer, 
               </div>
               <p className="text-[11px] text-center mt-2" style={{ color: "var(--ink-2)" }}>Keys 1–4 to grade · Again re-queues to the end, never immediately.</p>
             </div>
+          )}
+          </>
           )}
         </div>
       )}
@@ -173,6 +211,65 @@ export default function ReviewsView({ queue, pos, setPos, setQueue, showAnswer, 
             <div className="text-xs mt-1" style={{ color: "var(--ink-2)" }}>Reviews land automatically via spaced repetition.</div>
           </div>
         </div>
+      )}
+    </div>
+  );
+}
+
+function QuizPanel({ card, options, onResult }: { card: Flashcard; options: string[]; onResult: (ok: boolean) => void }) {
+  const [pick, setPick] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fn = (e: KeyboardEvent) => {
+      const n = Number(e.key);
+      if (n >= 1 && n <= options.length && !pick) {
+        e.preventDefault();
+        setPick(options[n - 1]);
+      }
+    };
+    window.addEventListener("keydown", fn);
+    return () => window.removeEventListener("keydown", fn);
+  }, [options, pick]);
+
+  if (options.length < 2) {
+    return (
+      <div className="text-center text-sm py-8" style={{ color: "var(--ink-2)" }}>
+        Quiz mode needs more cards — add at least one more card in this subject, then come back.
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-4">
+      <div className="text-[11px] font-bold uppercase tracking-widest text-center" style={{ color: "var(--ink-2)" }}>Pick the answer</div>
+      <div className="text-lg md:text-xl font-semibold mt-2 text-center">{card.front}</div>
+      <div className="mt-4 flex flex-col gap-2">
+        {options.map((o, i) => {
+          const isRight = o === card.back;
+          const isPick = pick === o;
+          const revealed = pick !== null;
+          return (
+            <button
+              key={i}
+              onClick={() => !pick && setPick(o)}
+              disabled={revealed}
+              className="text-left p-3 rounded-xl text-sm font-medium"
+              style={{
+                border: `1.5px solid ${revealed && isRight ? "#22C55E" : revealed && isPick ? "#EF4444" : "var(--border)"}`,
+                background: revealed && isRight ? "#22C55E11" : revealed && isPick ? "#EF444422" : "var(--card)",
+              }}
+            >
+              <span className="font-bold mr-2" style={{ color: "var(--ink-2)" }}>{i + 1}.</span> {o}
+            </button>
+          );
+        })}
+      </div>
+      {pick === null ? (
+        <p className="text-[11px] text-center mt-2" style={{ color: "var(--ink-2)" }}>Keys 1–{options.length} to answer · options drawn from your own deck</p>
+      ) : (
+        <button onClick={() => onResult(pick === card.back)} className="btn-primary w-full py-3 text-sm mt-4" autoFocus>
+          {pick === card.back ? "Correct — continue" : "Got it wrong — continue"}
+        </button>
       )}
     </div>
   );
