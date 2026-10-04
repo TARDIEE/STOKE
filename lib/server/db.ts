@@ -1,6 +1,7 @@
 import { createClient, type Client } from "@libsql/client";
 import path from "path";
 import fs from "fs";
+import os from "os";
 
 /**
  * Database: Turso (libSQL) in production, local SQLite file in dev.
@@ -16,17 +17,33 @@ function client(): Client {
   return createClient({ url: writableFileUrl() });
 }
 
-/** Local SQLite file. Vercel's filesystem is read-only except /tmp, so fall
- *  back there instead of crashing (still ephemeral — set TURSO_* for real persistence). */
+let usingMemoryFallback = false;
+
+/**
+ * Writable SQLite location, first working wins:
+ *  1. ./data/stoke.db (project dir — persists on real disks/VPS/shared hosting)
+ *  2. OS temp dir (survives as long as the machine does, may vanish on reboot)
+ *  3. Shared in-memory DB (always works, but dies with the process)
+ * The old hardcoded "/tmp" fallback broke on Windows/IIS hosts.
+ */
 function writableFileUrl(): string {
-  const dir = path.join(process.cwd(), "data");
-  try {
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    fs.accessSync(dir, fs.constants.W_OK);
-    return `file:${path.join(dir, "stoke.db")}`;
-  } catch {
-    return "file:/tmp/stoke.db";
+  const candidates = [
+    path.join(process.cwd(), "data", "stoke.db"),
+    path.join(os.tmpdir(), "stoke.db"),
+  ];
+  for (const file of candidates) {
+    try {
+      fs.mkdirSync(path.dirname(file), { recursive: true });
+      fs.accessSync(path.dirname(file), fs.constants.W_OK);
+      // Prove the file itself is openable (not just the directory).
+      fs.closeSync(fs.openSync(/*turbopackIgnore: true*/ file, "a"));
+      return `file:${file}`;
+    } catch {
+      continue;
+    }
   }
+  usingMemoryFallback = true;
+  return "file::memory:?cache=shared";
 }
 
 /** Which database backend is in use (shown by /api/health). */
@@ -38,9 +55,16 @@ export function dbKind(): "turso" | "file" {
  * True when data cannot survive: serverless platforms (Vercel) wipe local
  * files on every request, so each request can land on a different EMPTY
  * database — logins die instantly. Admin fix: set TURSO_* env vars.
+ * Also true when we fell back to in-memory storage (read-only disk).
  */
 export function isEphemeral(): boolean {
-  return !process.env.TURSO_DATABASE_URL && process.env.VERCEL === "1";
+  return (!process.env.TURSO_DATABASE_URL && process.env.VERCEL === "1") || usingMemoryFallback;
+}
+
+/** Which storage backend actually got used (shown by /api/health). */
+export function storageKind(): "turso" | "file" | "memory" {
+  if (process.env.TURSO_DATABASE_URL) return "turso";
+  return usingMemoryFallback ? "memory" : "file";
 }
 
 const globalForDb = globalThis as unknown as { __stokeClient?: Client };

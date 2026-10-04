@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { q1, run } from "@/lib/server/db";
 import { createSession, hashPassword, publicUser, type DbUser } from "@/lib/server/auth";
+import { checkRateLimit, clientIp } from "@/lib/server/ratelimit";
 import { uid } from "@/lib/server/util";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -10,7 +11,7 @@ export async function POST(req: Request) {
     return await register(req);
   } catch (e) {
     console.error("register failed:", e);
-    return NextResponse.json({ error: `Server error: ${e instanceof Error ? e.message : "unknown"}` }, { status: 500 });
+    return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 });
   }
 }
 
@@ -24,6 +25,14 @@ async function register(req: Request) {
   if (!name) return NextResponse.json({ error: "Please enter your name." }, { status: 400 });
   if (!EMAIL_RE.test(email)) return NextResponse.json({ error: "Please enter a valid email address." }, { status: 400 });
   if (password.length < 6) return NextResponse.json({ error: "Password must be at least 6 characters." }, { status: 400 });
+
+  const retryAfter = checkRateLimit(`register:${clientIp(req)}`, 10, 60 * 60_000);
+  if (retryAfter) {
+    return NextResponse.json(
+      { error: "Too many accounts created. Try again later." },
+      { status: 429, headers: { "Retry-After": String(retryAfter) } }
+    );
+  }
 
   const taken = await q1("SELECT id FROM users WHERE email = ?", email);
   if (taken) return NextResponse.json({ error: "An account with this email already exists. Try logging in." }, { status: 409 });
