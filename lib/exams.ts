@@ -304,6 +304,125 @@ export const EXAMS: ExamDef[] = [
       },
     ],
   },
+  {
+    id: "see",
+    name: "SEE Class 10",
+    region: "Nepal · NEB Boards",
+    tagline: "Secondary Education Examination (Class 10)",
+    typicalMonth: "March",
+    subjects: [
+      {
+        name: "Science–Physics", color: "#0EA5E9",
+        chapters: [
+          W("Force & Motion", 4, 6, ["Force, inertia & Newton's laws", "Motion graphs & equations", "Momentum & collisions"]),
+          W("Pressure", 2, 3, ["Liquid pressure & Pascal's law", "Atmospheric pressure & barometer", "Buoyancy & Archimedes' principle"]),
+          W("Heat Energy", 3, 4, ["Heat, temperature & specific heat", "Change of state & latent heat", "Humidity & heat transfer"]),
+          W("Waves", 4, 5, ["Wave terms & sound production", "Reflection & refraction of sound", "Stationary waves & Doppler basics"]),
+          W("Electricity & Magnetism", 4, 6, ["Current, voltage & Ohm's law", "Series-parallel circuits & power", "Magnetism & electromagnets"]),
+        ],
+      },
+      {
+        name: "Science–Chemistry", color: "#22C55E",
+        chapters: [
+          W("Classification of Elements", 3, 4, ["Modern periodic table", "Periods, groups & trends", "Electronic configuration"]),
+          W("Chemical Reactions & Equations", 3, 4, ["Balancing equations", "Types: combination to redox", "Mole & basic stoichiometry"]),
+          W("Acid, Base & Salt", 3, 4, ["Properties & indicators", "pH scale & neutralization", "Common salts & uses"]),
+          W("Some Gases", 3, 4, ["Hydrogen: prep & properties", "Oxygen & carbon dioxide", "Nitrogen & ammonia basics"]),
+          W("Metals & Non-metals", 3, 4, ["Physical vs chemical properties", "Reactivity series & extraction", "Corrosion & prevention"]),
+          W("Hydrocarbons & Daily Chemicals", 3, 4, ["Alkanes, alkenes & IUPAC basics", "Soaps, detergents & plastics", "Fertilizers & cement"]),
+        ],
+      },
+      {
+        name: "Science–Biology", color: "#16A34A",
+        chapters: [
+          W("Classification & Honey Bee", 3, 4, ["Five-kingdom classification", "Honey bee: castes & life cycle", "Apiculture & importance"]),
+          W("Heredity & Life Cycle", 4, 5, ["Mendel's laws & Punnett squares", "Sex determination & blood groups", "Life cycle stages"]),
+          W("Circulation & Body Systems", 4, 5, ["Human heart & blood vessels", "Nervous & glandular control", "Excretion & respiration"]),
+          W("Environment & Pollution", 3, 4, ["Ecosystem & food chains", "Pollution causes & control", "Conservation & sanitation"]),
+        ],
+      },
+      {
+        name: "Earth, Space & ICT", color: "#A78BFA",
+        chapters: [
+          W("Earth & Atmosphere", 3, 4, ["History of earth & layers", "Atmosphere & weather", "Rocks, minerals & soil"]),
+          W("Universe & ICT", 3, 4, ["Solar system & stars", "Satellites & space study", "ICT uses & cyber safety"]),
+        ],
+      },
+      {
+        name: "Mathematics", color: "#7C3AED",
+        chapters: [
+          W("Sets & Arithmetic", 4, 6, ["Sets, Venn diagrams & laws", "Time, work & profit-loss", "Compound interest & depreciation"]),
+          W("Mensuration I: Triangle to Cylinder", 4, 6, ["Area of triangles & Heron", "Prism & cylinder volumes", "Surface area drills"]),
+          W("Mensuration II: Sphere, Cone, Pyramid", 3, 5, ["Sphere & hemisphere", "Cone & pyramid", "Combined solids"]),
+          W("Algebra", 4, 6, ["Indices, surds & logarithms", "Quadratic equations", "Polynomials & HCF/LCM"]),
+          W("Geometry & Theorems", 4, 6, ["Congruence & similarity", "Circle theorems", "Constructions & proofs"]),
+          W("Trigonometry, Stats & Probability", 3, 5, ["Ratios, heights & distances", "Mean, median & mode", "Basic probability"]),
+        ],
+      },
+      {
+        name: "English", color: "#F59E0B",
+        chapters: [
+          W("Letters, Applications & Stories", 4, 5, ["Formal & personal letters", "Applications & notices", "Paragraphs, essays & stories"]),
+          W("Comprehension & Media Writing", 3, 4, ["Seen passages", "Argumentative writing", "Advertisement & newspaper article"]),
+          W("Grammar I: Articles to Conditionals", 4, 5, ["Articles & prepositions", "Transformation & question tags", "Conditionals & reported speech"]),
+          W("Grammar II: Clauses to Tenses", 4, 5, ["Causative verbs & relative clauses", "Subject-verb concord", "Tenses in use"]),
+        ],
+      },
+      {
+        name: "Nepali", color: "#EF4444",
+        chapters: [
+          W("कविता (Poems)", 3, 4, ["उज्यालो यात्रा — सारांश", "नेपाली हाम्रो श्रम र सीप — analysis", "गौमती एउटा कविता — theme"]),
+          W("कथा (Stories)", 4, 5, ["घर झगडा — characters", "सत्रु & कर्तव्य — summary", "आयाम — theme & message"]),
+          W("निबन्ध & जीवनी", 3, 4, ["चिकित्सा विज्ञान — main points", "देवकोटा & Picasso जीवनी", "पार्कान्सो & नाटक घरको माया"]),
+          W("पत्र & व्याकरण", 3, 4, ["व्यावसायिक चिठी format", "सन्धि, समास & कारक", "वाक्य शुद्धीकरण drills"]),
+        ],
+      },
+      {
+        name: "Social Studies", color: "#F97316",
+        chapters: [
+          W("Society, Values & Problems", 3, 4, ["Traditions, values & norms", "Social problems & solutions", "Civic sense & duties"]),
+          W("Geography & History", 4, 5, ["Earth: latitude, zones & maps", "Nepal: past to present", "World history snapshots"]),
+          W("Economy & Development", 3, 4, ["Economic activities & sectors", "Development infrastructure", "Community & cooperation"]),
+          W("International Relations", 2, 3, ["UN, SAARC & peace", "Nepal's foreign policy", "Current affairs basics"]),
+        ],
+      },
+      {
+        name: "EPH", color: "#14B8A6",
+        chapters: [
+          W("Demography & Quality of Life", 3, 4, ["Census, birth & mortality rates", "Migration & urbanization", "HDI & quality of life"]),
+          W("Environment & Biodiversity", 3, 4, ["Environment of Nepal", "Biodiversity & conservation", "Population–environment link"]),
+          W("Health & Community", 3, 4, ["Nutrition & balanced diet", "Tobacco, alcohol & drugs", "Community health & sanitation"]),
+        ],
+      },
+      {
+        name: "Optional Mathematics", color: "#8B5CF6",
+        chapters: [
+          W("Algebra: Functions to Matrix", 4, 6, ["Functions & polynomials", "Sequence, series & matrix", "Determinants basics"]),
+          W("Trigonometry: Compound to Conditional", 5, 7, ["Compound & multiple angles", "Sub-multiple & transformation", "Conditional identities & equations"]),
+          W("Height, Distance & Vectors", 3, 4, ["Heights & distances", "Vectors: dot & cross", "Applications"]),
+          W("Coordinate Geometry & Statistics", 3, 4, ["Pair of lines & circle", "Mean, median & quartiles", "Probability distributions"]),
+          W("Transformation Geometry", 3, 4, ["Reflection, rotation & translation", "Enlargement & combination", "Matrix transformations"]),
+        ],
+      },
+      {
+        name: "Computer Science", color: "#06B6D4",
+        chapters: [
+          W("Cyber Law, Ethics & Security", 3, 4, ["Cyber law of Nepal", "Ethics, virus & malware", "Security practices & backup"]),
+          W("Networking & Internet", 3, 4, ["Networks, topologies & media", "Internet services & email", "Multimedia basics"]),
+          W("Number System & DBMS", 3, 4, ["Binary/octal/hex conversions", "MS Access: tables & queries", "Forms & reports"]),
+          W("Programming: QBASIC & C", 4, 5, ["QBASIC modular & file handling", "C: variables, loops & arrays", "Programs & debugging"]),
+        ],
+      },
+      {
+        name: "Accountancy", color: "#84CC16",
+        chapters: [
+          W("Journal & Ledger", 4, 5, ["Journal rules & entries", "Ledger posting & balancing", "Subsidiary books"]),
+          W("Trial Balance & Cash Book", 3, 4, ["Trial balance & errors", "Cash & bank columns", "Bank reconciliation basics"]),
+          W("Office Procedure", 2, 3, ["Office correspondence", "Filing & documentation", "Business communication"]),
+        ],
+      },
+    ],
+  },
 ];
 
 export const CUSTOM_EXAM_ID = "custom";
