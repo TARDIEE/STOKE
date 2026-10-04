@@ -24,13 +24,21 @@
       }
     },
     "plugins": [
-      "expo-router"
+      "expo-router",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
     },
     "extra": {
-      "webAppUrl": "http://192.168.18.111:3000"
+      "webAppUrl": "http://stoke-study.runasp.net"
     }
   }
 }
