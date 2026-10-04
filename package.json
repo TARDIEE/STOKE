@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "package:monsterasp": "node scripts/package-monsterasp.mjs"
   },
   "dependencies": {
     "@fontsource-variable/inter-tight": "^5.3.0",
