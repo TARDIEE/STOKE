@@ -31,7 +31,7 @@ export async function POST(req: Request) {
     topics = [];
   }
 
-  const db = getDb();
+  const db = await getDb();
   const key = await getAiKey(user.id, db);
   const gen = (topic: string, count: number) =>
     key

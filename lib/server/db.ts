@@ -1,32 +1,77 @@
-import { createClient, type Client } from "@libsql/client";
 import path from "path";
 import fs from "fs";
 import os from "os";
+import type { Client } from "@libsql/client";
 
 /**
  * Database: Turso (libSQL) in production, local SQLite file in dev.
  * Set TURSO_DATABASE_URL + TURSO_AUTH_TOKEN on Vercel — without them the app
  * falls back to data/stoke.db, which Vercel's filesystem wipes on every deploy.
+ *
+ * File mode prefers Node's built-in SQLite (node:sqlite): zero native
+ * binaries, so FTP uploads and locked-down shared hosting can't break it.
+ * libSQL remains for Turso (remote protocol) and as an old-Node fallback.
  */
 
-function client(): Client {
-  const url = process.env.TURSO_DATABASE_URL;
-  if (url) {
-    return createClient({ url, authToken: process.env.TURSO_AUTH_TOKEN });
-  }
-  return createClient({ url: writableFileUrl() });
+/** Minimal surface our query helpers need, regardless of driver. */
+export interface DbIface {
+  execute(sql: string, args?: unknown[]): Promise<{ rows: Record<string, unknown>[] }>;
+  batch(stmts: { sql: string; args: unknown[] }[]): Promise<void>;
 }
 
 let usingMemoryFallback = false;
+
+async function createNodeSqlite(file: string | null): Promise<DbIface> {
+  const { DatabaseSync } = await import("node:sqlite");
+  const db = new DatabaseSync(file ?? ":memory:");
+  db.exec("PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 5000;");
+  if (file == null) usingMemoryFallback = true;
+  return {
+    async execute(sql: string, args: unknown[] = []) {
+      const stmt = db.prepare(sql);
+      const head = sql.trimStart().slice(0, 6).toUpperCase();
+      if (head === "SELECT") return { rows: stmt.all(...args) };
+      stmt.run(...args);
+      return { rows: [] };
+    },
+    async batch(stmts: { sql: string; args: unknown[] }[]) {
+      db.exec("BEGIN");
+      try {
+        for (const s of stmts) db.prepare(s.sql).run(...s.args);
+        db.exec("COMMIT");
+      } catch (e) {
+        try {
+          db.exec("ROLLBACK");
+        } catch {
+          /* ignore */
+        }
+        throw e;
+      }
+    },
+  };
+}
+
+function libsqlIface(client: Client): DbIface {
+  return {
+    execute: async (sql: string, args: unknown[] = []) => {
+      const r = await client.execute({ sql, args: args as never[] });
+      return { rows: r.rows as unknown as Record<string, unknown>[] };
+    },
+    batch: async (stmts: { sql: string; args: unknown[] }[]) => {
+      await client.batch(
+        stmts.map((s) => ({ sql: s.sql, args: s.args as never[] }))
+      );
+    },
+  };
+}
 
 /**
  * Writable SQLite location, first working wins:
  *  1. ./data/stoke.db (project dir — persists on real disks/VPS/shared hosting)
  *  2. OS temp dir (survives as long as the machine does, may vanish on reboot)
- *  3. Shared in-memory DB (always works, but dies with the process)
- * The old hardcoded "/tmp" fallback broke on Windows/IIS hosts.
+ *  3. null → in-memory database (always works, dies with the process)
  */
-function writableFileUrl(): string {
+function pickFile(): string | null {
   const candidates = [
     path.join(process.cwd(), "data", "stoke.db"),
     path.join(os.tmpdir(), "stoke.db"),
@@ -37,13 +82,12 @@ function writableFileUrl(): string {
       fs.accessSync(path.dirname(file), fs.constants.W_OK);
       // Prove the file itself is openable (not just the directory).
       fs.closeSync(fs.openSync(/*turbopackIgnore: true*/ file, "a"));
-      return `file:${file}`;
+      return file;
     } catch {
       continue;
     }
   }
-  usingMemoryFallback = true;
-  return "file::memory:?cache=shared";
+  return null;
 }
 
 /** Which database backend is in use (shown by /api/health). */
@@ -67,10 +111,38 @@ export function storageKind(): "turso" | "file" | "memory" {
   return usingMemoryFallback ? "memory" : "file";
 }
 
-const globalForDb = globalThis as unknown as { __stokeClient?: Client };
-export function getDb(): Client {
-  if (!globalForDb.__stokeClient) globalForDb.__stokeClient = client();
-  return globalForDb.__stokeClient;
+const globalForDb = globalThis as unknown as { __stokeDb?: DbIface; __stokeDbPromise?: Promise<DbIface> };
+export async function getDb(): Promise<DbIface> {
+  if (globalForDb.__stokeDb) return globalForDb.__stokeDb;
+  if (!globalForDb.__stokeDbPromise) {
+    globalForDb.__stokeDbPromise = (async (): Promise<DbIface> => {
+      // Turso stays on libsql (it speaks the remote protocol).
+      if (process.env.TURSO_DATABASE_URL) {
+        const { createClient } = await import("@libsql/client");
+        const db = libsqlIface(
+          createClient({ url: process.env.TURSO_DATABASE_URL, authToken: process.env.TURSO_AUTH_TOKEN })
+        );
+        globalForDb.__stokeDb = db;
+        return db;
+      }
+      // File mode: dependency-free node:sqlite first (immune to broken or
+      // blocked native binaries on shared hosting); libsql file as fallback.
+      const file = pickFile();
+      try {
+        const db = await createNodeSqlite(file);
+        globalForDb.__stokeDb = db;
+        return db;
+      } catch (e) {
+        console.error("node:sqlite unavailable, falling back to libsql:", e);
+        const { createClient } = await import("@libsql/client");
+        if (!file) usingMemoryFallback = true;
+        const db = libsqlIface(createClient({ url: file ? `file:${file}` : "file::memory:?cache=shared" }));
+        globalForDb.__stokeDb = db;
+        return db;
+      }
+    })();
+  }
+  return globalForDb.__stokeDbPromise;
 }
 
 const SCHEMA = `
@@ -177,8 +249,8 @@ let migrated: Promise<void> | null = null;
 async function migrate() {
   if (!migrated) {
     migrated = (async () => {
-      const db = getDb();
-      // Split schema: libsql executes one statement per call.
+      const db = await getDb();
+      // Split schema: drivers execute one statement per call.
       for (const stmt of SCHEMA.split(";").map((s) => s.trim()).filter(Boolean)) {
         await db.execute(stmt);
       }
@@ -199,7 +271,7 @@ type Row = Record<string, unknown>;
 /** SELECT many. */
 export async function q<T = Row>(sql: string, ...args: unknown[]): Promise<T[]> {
   await migrate();
-  const r = await getDb().execute({ sql, args: args as never[] });
+  const r = await (await getDb()).execute(sql, args);
   return r.rows as unknown as T[];
 }
 
@@ -212,16 +284,14 @@ export async function q1<T = Row>(sql: string, ...args: unknown[]): Promise<T | 
 /** INSERT/UPDATE/DELETE. */
 export async function run(sql: string, ...args: unknown[]): Promise<void> {
   await migrate();
-  await getDb().execute({ sql, args: args as never[] });
+  await (await getDb()).execute(sql, args);
 }
 
 /** Run several writes atomically. */
 export async function batch(stmts: { sql: string; args: unknown[] }[]): Promise<void> {
   if (!stmts.length) return;
   await migrate();
-  await getDb().batch(
-    stmts.map((s) => ({ sql: s.sql, args: s.args as (string | number | boolean | null)[] }))
-  );
+  await (await getDb()).batch(stmts);
 }
 
 /** Delete all study data for a user (keeps the account). Fresh start, no demo data. */

@@ -14,7 +14,7 @@ export async function POST(req: Request) {
   const notes = String(body?.notes ?? "").slice(0, 4000);
   if (!topic) return NextResponse.json({ error: "Describe the topic first." }, { status: 400 });
 
-  const db = getDb();
+  const db = await getDb();
   const key = await getAiKey(user.id, db);
 
   const chapter = body?.chapterId

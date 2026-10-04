@@ -535,6 +535,9 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
     },
     logout: async () => {
       try { await api("/api/auth/session", { method: "DELETE" }); } catch { /* ignore */ }
+      // Clear any stale server error, otherwise the error card re-renders
+      // instead of the sign-in form and "Back to sign in" looks broken.
+      setBootError(null);
       setData(null);
     },
     toasts, pushToast,

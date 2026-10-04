@@ -31,7 +31,7 @@ export async function GET(req: Request) {
   if (!user) return NextResponse.json({ error: "Not signed in." }, { status: 401 });
   const day = new URL(req.url).searchParams.get("day") || "";
   if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return NextResponse.json({ error: "Bad day." }, { status: 400 });
-  const db = getDb();
+  const db = await getDb();
   const key = await getAiKey(user.id, db);
   return NextResponse.json({ questions: await listDay(user.id, day), aiReady: !!key, model: aiModelName() });
 }
@@ -47,7 +47,7 @@ export async function POST(req: Request) {
   const day = String(body?.day ?? "");
   if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return NextResponse.json({ error: "Bad day." }, { status: 400 });
 
-  const db = getDb();
+  const db = await getDb();
   const key = await getAiKey(user.id, db);
   const useOpen = !key;
 
@@ -91,7 +91,6 @@ export async function POST(req: Request) {
       }
     }
     if (!made.length) return NextResponse.json({ error: "The AI returned nothing usable — try again." }, { status: 502 });
-    const db = getDb();
     await batch([
       { sql: "DELETE FROM ai_questions WHERE user_id = ? AND day = ?", args: [user.id, day] },
       ...made.map((qq) => ({
