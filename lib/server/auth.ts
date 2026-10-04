@@ -1,9 +1,30 @@
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { createHash, randomBytes, scryptSync, timingSafeEqual } from "crypto";
 import { q1, run } from "./db";
 
 export const COOKIE = "stoke_session";
 const THIRTY_DAYS = 30 * 24 * 3600;
+
+/**
+ * Secure cookies are silently dropped by browsers over plain HTTP — which
+ * made login look "successful" but never stick on http:// hosts. Detect the
+ * actual request scheme (proxy header, else the Referer browsers always send
+ * same-origin) and only mark Secure on real HTTPS. COOKIE_SECURE=1/0 forces it.
+ */
+export async function sessionCookieSecure(): Promise<boolean> {
+  if (process.env.COOKIE_SECURE === "1") return true;
+  if (process.env.COOKIE_SECURE === "0") return false;
+  try {
+    const h = await headers();
+    const proto = (h.get("x-forwarded-proto") ?? "").split(",")[0].trim().toLowerCase();
+    const ref = h.get("referer") ?? h.get("origin") ?? "";
+    if (proto === "http" || ref.startsWith("http://")) return false;
+    if (proto === "https" || ref.startsWith("https://")) return true;
+  } catch {
+    /* fall through to the default */
+  }
+  return process.env.NODE_ENV === "production";
+}
 
 export function hashPassword(pw: string, salt = randomBytes(16).toString("hex")) {
   return { salt, hash: scryptSync(pw, salt, 64).toString("hex") };
@@ -66,7 +87,7 @@ export async function createSession(userId: string) {
     sameSite: "lax",
     path: "/",
     maxAge: THIRTY_DAYS,
-    secure: process.env.NODE_ENV === "production",
+    secure: await sessionCookieSecure(),
   });
 }
 
