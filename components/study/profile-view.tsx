@@ -1,6 +1,7 @@
 "use client";
 
-import { Flame, LogOut, Target } from "lucide-react";
+import { useState } from "react";
+import { Flame, LogOut, Target, Trash2 } from "lucide-react";
 import { fmtDur, useDerived, useStudy } from "@/lib/study-store";
 import SettingsView from "./settings-view";
 
@@ -13,6 +14,32 @@ export default function ProfileView({ onAddSubject, onOpenCalendar }: {
   if (!data) return null;
   const initial = (data.user.name || data.user.email || "S").slice(0, 1).toUpperCase();
   const examMs = data.user.examDate > Date.now() ? data.user.examDate - Date.now() : 0;
+  const [arming, setArming] = useState(false);
+  const [delPw, setDelPw] = useState("");
+  const [delBusy, setDelBusy] = useState(false);
+  const [delError, setDelError] = useState<string | null>(null);
+
+  const deleteAccount = async () => {
+    if (!delPw) {
+      setDelError("Enter your password to confirm.");
+      return;
+    }
+    setDelBusy(true);
+    setDelError(null);
+    try {
+      const res = await fetch("/api/auth/account", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: delPw }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body?.error || "Delete failed.");
+      window.location.reload();
+    } catch (e) {
+      setDelError(e instanceof Error ? e.message : "Delete failed.");
+    }
+    setDelBusy(false);
+  };
 
   return (
     <div className="max-w-2xl">
@@ -64,6 +91,41 @@ export default function ProfileView({ onAddSubject, onOpenCalendar }: {
       <h2 className="font-bold text-lg mt-6">Settings</h2>
       <div className="mt-3">
         <SettingsView bare onAddSubject={onAddSubject} />
+      </div>
+
+      <div className="card p-4 mt-3" style={{ borderColor: "#EF4444" }}>
+        <h3 className="font-bold text-sm flex items-center gap-1.5" style={{ color: "#EF4444" }}>
+          <Trash2 size={14} /> Danger zone
+        </h3>
+        {!arming ? (
+          <button onClick={() => { setArming(true); setDelError(null); }} className="mt-2 px-4 py-2 text-xs font-bold rounded-xl" style={{ border: "1px solid #EF4444", color: "#EF4444" }}>
+            Delete my account…
+          </button>
+        ) : (
+          <div className="mt-2">
+            <p className="text-xs font-semibold" style={{ color: "#EF4444" }}>
+              Permanently deletes your account and ALL study data. This cannot be undone.
+            </p>
+            <input
+              value={delPw}
+              onChange={(e) => setDelPw(e.target.value)}
+              type="password"
+              placeholder="Current password to confirm"
+              className="w-full mt-2 px-3 py-2 rounded-xl text-sm"
+              style={{ border: "1px solid var(--border)", background: "var(--bg)" }}
+              aria-label="Current password"
+            />
+            {delError && <p className="text-xs font-semibold mt-1" style={{ color: "#EF4444" }} role="alert">{delError}</p>}
+            <div className="flex gap-2 mt-2">
+              <button onClick={() => { setArming(false); setDelPw(""); setDelError(null); }} className="flex-1 py-2 text-xs font-semibold rounded-xl" style={{ border: "1px solid var(--border)" }}>
+                Keep my account
+              </button>
+              <button onClick={deleteAccount} disabled={delBusy} className="flex-1 py-2 text-xs font-bold rounded-xl text-white disabled:opacity-50" style={{ background: "#EF4444" }}>
+                {delBusy ? "Deleting…" : "Yes, delete everything"}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

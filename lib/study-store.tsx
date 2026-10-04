@@ -216,6 +216,7 @@ interface StudyCtx {
   register: (name: string, email: string, password: string) => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  clearAuthError: () => void;
   toasts: Toast[];
   pushToast: (t: Omit<Toast, "id">) => void;
   updateUser: (u: Partial<UserState>) => void;
@@ -504,6 +505,7 @@ export function StudyProvider({ children }: { children: React.ReactNode }) {
 
   const value: StudyCtx = useMemo(() => ({
     data, authChecked, authError, bootError,
+    clearAuthError: () => setAuthError(null),
     refresh: async () => {
       setBootError(null);
       try {

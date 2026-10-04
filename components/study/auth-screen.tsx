@@ -5,7 +5,7 @@ import { useStudy } from "@/lib/study-store";
 import { AppLogo } from "./logo";
 
 export default function AuthScreen() {
-  const { login, register, authError } = useStudy();
+  const { login, register, authError, clearAuthError } = useStudy();
   const [mode, setMode] = useState<"login" | "register">("register");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -48,7 +48,7 @@ export default function AuthScreen() {
 
         <div className="flex gap-2 mt-5 p-1 rounded-xl" style={{ background: "var(--bg)" }} role="tablist" aria-label="Sign in or create account">
           {(["register", "login"] as const).map((m) => (
-            <button key={m} role="tab" aria-selected={mode === m} onClick={() => { setMode(m); setLocalError(null); }}
+            <button key={m} role="tab" aria-selected={mode === m} onClick={() => { setMode(m); setLocalError(null); clearAuthError(); }}
               className={`flex-1 py-2 rounded-lg text-sm font-bold capitalize ${mode === m ? "text-white" : ""}`}
               style={mode === m ? { background: "#7c3aed" } : { color: "var(--ink-2)" }}>
               {mode === m ? (m === "register" ? "Create account" : "Sign in") : m === "register" ? "Sign up" : "Sign in"}
@@ -78,6 +78,11 @@ export default function AuthScreen() {
         </div>
 
         {error && <p className="text-xs font-semibold mt-2" style={{ color: "#EF4444" }} role="alert">{error}</p>}
+        {/already exists/i.test(error ?? "") && mode === "register" && (
+          <button onClick={() => { setMode("login"); setLocalError(null); clearAuthError(); }} className="text-xs font-bold mt-1.5" style={{ color: "#7C3AED" }}>
+            Go to Sign in →
+          </button>
+        )}
 
         <button onClick={submit} disabled={busy} className="btn-primary w-full py-2.5 text-sm mt-4 disabled:opacity-60">
           {busy ? "Please wait…" : mode === "register" ? "Create my account" : "Sign in"}
