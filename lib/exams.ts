@@ -18,8 +18,26 @@ export interface ExamDef {
   region: string;
   tagline: string;
   typicalMonth: string;
+  /** country id (see COUNTRIES) — onboarding shows this country's exams first */
+  country: string;
+  /** school = class level, board = national board exam, entrance = competitive */
+  level: "school" | "board" | "entrance";
+  /** class/grade for school levels (8, 9, …) */
+  grade?: number;
   subjects: ExamSubject[];
 }
+
+export interface Country {
+  id: string;
+  name: string;
+  flag: string;
+}
+
+export const COUNTRIES: Country[] = [
+  { id: "nepal", name: "Nepal", flag: "🇳🇵" },
+  { id: "india", name: "India", flag: "🇮🇳" },
+  { id: "usa", name: "USA", flag: "🇺🇸" },
+];
 
 const W = (name: string, weight: 1 | 2 | 3 | 4 | 5, hours: number, topics: string[] = []): ExamChapter => ({ name, weight, hours, topics });
 
@@ -30,6 +48,8 @@ export const EXAMS: ExamDef[] = [
     region: "Nepal · BE/BCT",
     tagline: "Engineering entrance (Tribhuvan University)",
     typicalMonth: "July",
+    country: "nepal",
+    level: "entrance",
     subjects: [
       {
         name: "Mathematics", color: "#7C3AED",
@@ -95,6 +115,8 @@ export const EXAMS: ExamDef[] = [
     region: "Nepal · MBBS/BDS/Nursing",
     tagline: "Common entrance exam (Medical Education Commission)",
     typicalMonth: "September",
+    country: "nepal",
+    level: "entrance",
     subjects: [
       {
         name: "Physics", color: "#0EA5E9",
@@ -145,6 +167,8 @@ export const EXAMS: ExamDef[] = [
     region: "India · Engineering",
     tagline: "IIT / NIT entrance examination",
     typicalMonth: "January",
+    country: "india",
+    level: "entrance",
     subjects: [
       {
         name: "Physics", color: "#0EA5E9",
@@ -222,6 +246,8 @@ export const EXAMS: ExamDef[] = [
     region: "India · Medical",
     tagline: "MBBS / BDS entrance (NCERT based)",
     typicalMonth: "May",
+    country: "india",
+    level: "entrance",
     subjects: [
       {
         name: "Physics", color: "#0EA5E9",
@@ -270,6 +296,8 @@ export const EXAMS: ExamDef[] = [
     region: "US · College admissions",
     tagline: "Digital SAT: Math + Reading & Writing",
     typicalMonth: "March",
+    country: "usa",
+    level: "entrance",
     subjects: [
       {
         name: "Math", color: "#7C3AED",
@@ -297,6 +325,8 @@ export const EXAMS: ExamDef[] = [
     region: "Nepal · Class 12",
     tagline: "National Examination Board science stream",
     typicalMonth: "April",
+    country: "nepal",
+    level: "board",
     subjects: [
       {
         name: "Physics", color: "#0EA5E9",
@@ -340,6 +370,8 @@ export const EXAMS: ExamDef[] = [
     region: "Nepal · NEB Boards",
     tagline: "Secondary Education Examination (Class 10)",
     typicalMonth: "March",
+    country: "nepal",
+    level: "board",
     subjects: [
       {
         name: "Science–Physics", color: "#0EA5E9",
@@ -449,6 +481,225 @@ export const EXAMS: ExamDef[] = [
           W("Journal & Ledger", 4, 5, ["Journal rules & entries", "Ledger posting & balancing", "Subsidiary books"]),
           W("Trial Balance & Cash Book", 3, 4, ["Trial balance & errors", "Cash & bank columns", "Bank reconciliation basics"]),
           W("Office Procedure", 2, 3, ["Office correspondence", "Filing & documentation", "Business communication"]),
+        ],
+      },
+    ],
+  },
+  {
+    id: "np8",
+    name: "Class 8 (Nepal)",
+    region: "Nepal · Basic Level",
+    tagline: "Class 8 school curriculum (CDC)",
+    typicalMonth: "March",
+    country: "nepal",
+    level: "school",
+    grade: 8,
+    subjects: [
+      {
+        name: "Mathematics", color: "#7C3AED",
+        chapters: [
+          W("Sets & Arithmetic", 3, 4, ["Sets & Venn diagrams", "HCF, LCM & fractions", "Unitary method & decimals"]),
+          W("Algebra Basics", 3, 4, ["Indices & laws", "Algebraic expressions", "Simple equations"]),
+          W("Geometry & Mensuration", 3, 4, ["Angles, triangles & circles", "Area & perimeter", "Volume of solids"]),
+          W("Statistics", 2, 3, ["Data collection & tables", "Mean, median & mode", "Bar graphs & pictographs"]),
+        ],
+      },
+      {
+        name: "Science & Technology", color: "#0EA5E9",
+        chapters: [
+          W("Scientific Learning & Lab", 2, 3, ["Steps of scientific study", "Lab safety & apparatus", "Measurement basics"]),
+          W("Living Beings & Environment", 3, 4, ["Classification of living things", "Adaptation & habitat", "Balance in nature"]),
+          W("Force, Pressure & Machines", 3, 4, ["Force & effects", "Pressure in solids & liquids", "Simple machines"]),
+          W("Energy, Heat & Light", 3, 4, ["Forms of energy", "Heat & temperature", "Light, shadows & mirrors"]),
+          W("Sound, Electricity & Materials", 3, 4, ["Sound production & travel", "Simple circuits & magnets", "Metals, non-metals & plastics"]),
+        ],
+      },
+      {
+        name: "English", color: "#F59E0B",
+        chapters: [
+          W("Reading & Vocabulary", 3, 4, ["Comprehension passages", "Word meanings in context", "Dictionary skills"]),
+          W("Grammar: Tenses & Voice", 3, 4, ["Tenses in use", "Active & passive voice", "Direct & indirect speech"]),
+          W("Writing: Paragraphs to Stories", 3, 4, ["Paragraphs & essays", "Letters & applications", "Stories & dialogues"]),
+        ],
+      },
+      {
+        name: "Nepali", color: "#EF4444",
+        chapters: [
+          W("पाठहरू (Lessons)", 3, 4, ["गद्य पाठ — सारांश", "पद्य पाठ — भावार्थ", "अभ्यास प्रश्न"]),
+          W("व्याकरण (Grammar)", 3, 4, ["सन्धि & समास", "कारक & वचन", "वाक्य शुद्धीकरण"]),
+          W("लेखन (Writing)", 2, 3, ["पत्र & निवेदन", "निबन्ध & अनुच्छेद", "संवाद & जीवनी"]),
+        ],
+      },
+      {
+        name: "Social Studies", color: "#F97316",
+        chapters: [
+          W("Community & Nation", 2, 3, ["Our community & diversity", "National symbols & identity", "Rights & duties"]),
+          W("Geography of Nepal", 3, 4, ["Physical divisions & climate", "Natural resources", "Maps & directions"]),
+          W("History & Development", 2, 3, ["Ancient to modern Nepal", "Development & infrastructure", "Population & environment"]),
+        ],
+      },
+      {
+        name: "Health & Physical Education", color: "#14B8A6",
+        chapters: [
+          W("Nutrition & Hygiene", 2, 3, ["Balanced diet & nutrients", "Personal & environmental hygiene", "Safe water & sanitation"]),
+          W("Exercise, Yoga & Safety", 2, 3, ["Daily exercise & yoga", "First aid basics", "Road & home safety"]),
+        ],
+      },
+    ],
+  },
+  {
+    id: "np9",
+    name: "Class 9 (Nepal)",
+    region: "Nepal · Secondary",
+    tagline: "Class 9 school curriculum — SEE foundation year (CDC)",
+    typicalMonth: "March",
+    country: "nepal",
+    level: "school",
+    grade: 9,
+    subjects: [
+      {
+        name: "Mathematics", color: "#7C3AED",
+        chapters: [
+          W("Sets & Number System", 3, 4, ["Sets, subsets & operations", "Real numbers & surds", "Indices & logarithms"]),
+          W("Algebra", 4, 5, ["Polynomials & factorization", "Linear & quadratic equations", "Ratio, proportion & variation"]),
+          W("Geometry", 4, 5, ["Triangles & congruence", "Circles & theorems", "Constructions"]),
+          W("Trigonometry & Mensuration", 3, 4, ["Trig ratios & tables", "Heights & distances", "Area & volume"]),
+          W("Statistics & Probability", 2, 3, ["Grouped data & averages", "Graphical representation", "Probability basics"]),
+        ],
+      },
+      {
+        name: "Science & Technology", color: "#0EA5E9",
+        chapters: [
+          W("Physics: Motion to Electricity", 4, 6, ["Motion, velocity & acceleration", "Force, pressure & machines", "Work, energy & power", "Waves, light & sound", "Current & magnetism"]),
+          W("Chemistry: Matter to Metals", 4, 5, ["Matter & atomic structure", "Bonding & periodic table", "Acids, bases & salts", "Metals, non-metals & carbon"]),
+          W("Biology: Cell to Environment", 4, 5, ["Cell structure & division", "Human body systems", "Reproduction & heredity", "Ecosystem & conservation"]),
+        ],
+      },
+      {
+        name: "English", color: "#F59E0B",
+        chapters: [
+          W("Reading & Comprehension", 3, 4, ["Passages & inference", "Vocabulary in context", "Note-making"]),
+          W("Grammar", 4, 5, ["Tenses & voice", "Reported speech & conditionals", "Transformation & clauses"]),
+          W("Writing", 3, 4, ["Letters & applications", "Essays & reports", "Stories & dialogues"]),
+        ],
+      },
+      {
+        name: "Nepali", color: "#EF4444",
+        chapters: [
+          W("पाठहरू (Lessons)", 3, 4, ["गद्य — सारांश & विश्लेषण", "पद्य — भावार्थ", "एकाङ्की & निबन्ध"]),
+          W("व्याकरण (Grammar)", 4, 5, ["सन्धि, समास & उपसर्ग-प्रत्यय", "कारक, वचन & लिङ्ग", "वाक्य विश्लेषण & शुद्धीकरण"]),
+          W("लेखन (Writing)", 3, 4, ["पत्र & निवेदन", "निबन्ध & प्रतिवेदन", "संवाद & जीवनी"]),
+        ],
+      },
+      {
+        name: "Social Studies", color: "#F97316",
+        chapters: [
+          W("Society & Culture", 2, 3, ["Social values & diversity", "Problems & solutions", "Civic consciousness"]),
+          W("Geography & Resources", 3, 4, ["Landforms & climate of Nepal", "Natural resources & use", "Population & settlement"]),
+          W("History, Polity & Economy", 3, 4, ["Medieval to modern Nepal", "Constitution & governance", "Economic activities"]),
+        ],
+      },
+      {
+        name: "Computer Science", color: "#06B6D4",
+        chapters: [
+          W("Fundamentals & Number System", 2, 3, ["Computer generations & types", "Binary, octal & hex conversions", "Hardware & software"]),
+          W("QBASIC Programming", 3, 4, ["Input, output & variables", "Loops & conditions", "Small programs & debugging"]),
+          W("Internet & Cyber Safety", 2, 3, ["Internet, email & browsing", "Cyber law & ethics", "Virus & security basics"]),
+        ],
+      },
+    ],
+  },
+  {
+    id: "in8",
+    name: "Class 8 (India · NCERT)",
+    region: "India · CBSE/NCERT",
+    tagline: "Class 8 foundation for JEE/NEET track",
+    typicalMonth: "March",
+    country: "india",
+    level: "school",
+    grade: 8,
+    subjects: [
+      {
+        name: "Science", color: "#0EA5E9",
+        chapters: [
+          W("Crop Production & Microorganisms", 3, 4, ["Crop seasons & practices", "Nitrogen cycle & manure", "Useful vs harmful microbes"]),
+          W("Materials: Fibres, Plastics & Metals", 3, 4, ["Synthetic fibres & plastics", "Metals vs non-metals", "Corrosion & conservation"]),
+          W("Coal, Petroleum & Combustion", 3, 4, ["Fossil fuels & formation", "Combustion types & flame", "Fuel efficiency & pollution"]),
+          W("Cell, Reproduction & Adolescence", 3, 4, ["Cell organelles", "Asexual & sexual reproduction", "Adolescence & hormones"]),
+          W("Force, Pressure & Friction", 3, 4, ["Contact vs non-contact forces", "Pressure in fluids", "Friction: boon & bane"]),
+          W("Sound & Electric Current", 3, 4, ["Sound production & travel", "Hearing & noise control", "Circuits & heating effects"]),
+          W("Light, Stars & Environment", 3, 4, ["Reflection & human eye", "Stars & solar system", "Air & water pollution"]),
+        ],
+      },
+      {
+        name: "Mathematics", color: "#7C3AED",
+        chapters: [
+          W("Numbers & Powers", 3, 4, ["Rational numbers", "Squares, cubes & roots", "Exponents & standard form"]),
+          W("Algebra I: Equations & Expressions", 4, 5, ["Linear equations in one variable", "Algebraic identities", "Comparing quantities"]),
+          W("Algebra II: Proportions & Factorisation", 3, 4, ["Direct & inverse proportions", "Factorisation methods", "Division of polynomials"]),
+          W("Geometry: Quadrilaterals & Mensuration", 4, 5, ["Quadrilaterals & polygons", "Area of polygons", "Surface area & volume"]),
+          W("Data, Graphs & Probability", 2, 3, ["Data handling & charts", "Introduction to graphs", "Chance & probability"]),
+        ],
+      },
+    ],
+  },
+  {
+    id: "in9",
+    name: "Class 9 (India · NCERT)",
+    region: "India · CBSE/NCERT",
+    tagline: "Class 9 foundation for JEE/NEET track",
+    typicalMonth: "March",
+    country: "india",
+    level: "school",
+    grade: 9,
+    subjects: [
+      {
+        name: "Science", color: "#0EA5E9",
+        chapters: [
+          W("Matter & Atoms", 4, 5, ["Matter in our surroundings", "Is matter pure? mixtures & solutions", "Atoms, molecules & mole concept", "Structure of the atom"]),
+          W("Cell, Tissues & Life", 3, 4, ["Cell & organelles", "Plant & animal tissues", "Diversity & health basics"]),
+          W("Motion, Force & Gravitation", 4, 5, ["Motion graphs & equations", "Laws of motion", "Gravitation & buoyancy"]),
+          W("Work, Energy & Sound", 3, 4, ["Work, energy & power", "Sound: production & travel", "Reflection & applications of sound"]),
+          W("Food & Environment", 2, 3, ["Crop improvement & animal husbandry", "Natural resources & pollution", "Conservation"]),
+        ],
+      },
+      {
+        name: "Mathematics", color: "#7C3AED",
+        chapters: [
+          W("Number Systems & Polynomials", 4, 5, ["Irrational numbers & lines", "Polynomials & zeroes", "Remainder & factor theorems"]),
+          W("Coordinate & Linear Equations", 3, 4, ["Cartesian plane", "Linear equations in two variables", "Euclid's geometry basics"]),
+          W("Geometry: Lines to Circles", 4, 5, ["Lines, angles & triangles", "Quadrilaterals & areas", "Circles & theorems"]),
+          W("Mensuration & Statistics", 3, 4, ["Heron's formula", "Surface areas & volumes", "Statistics & probability"]),
+        ],
+      },
+    ],
+  },
+  {
+    id: "in10",
+    name: "Class 10 (India · CBSE)",
+    region: "India · CBSE Boards",
+    tagline: "Class 10 boards — direct launchpad to JEE/NEET",
+    typicalMonth: "March",
+    country: "india",
+    level: "school",
+    grade: 10,
+    subjects: [
+      {
+        name: "Science", color: "#0EA5E9",
+        chapters: [
+          W("Chemical Substances", 4, 5, ["Chemical reactions & equations", "Acids, bases & salts", "Metals, non-metals & carbon compounds"]),
+          W("World of Living", 4, 5, ["Life processes", "Control & coordination", "Reproduction & heredity"]),
+          W("Natural Phenomena", 3, 4, ["Light: reflection & refraction", "Human eye & colourful world", "Prism & dispersion"]),
+          W("Effects of Current & Environment", 4, 5, ["Electricity & circuits", "Magnetic effects of current", "Our environment & management"]),
+        ],
+      },
+      {
+        name: "Mathematics", color: "#7C3AED",
+        chapters: [
+          W("Algebra I: Numbers to Quadratics", 4, 5, ["Real numbers & Euclid's lemma", "Polynomials", "Pair of linear equations & quadratics"]),
+          W("Algebra II: Progressions", 3, 4, ["Arithmetic progressions", "Geometric flavour & sums", "Word-problem drills"]),
+          W("Geometry & Trigonometry", 4, 5, ["Triangles: similarity & Pythagoras", "Circles & constructions", "Trig ratios & heights-distances"]),
+          W("Mensuration, Stats & Probability", 3, 4, ["Areas, surface areas & volumes", "Statistics: mean & mode", "Probability basics"]),
         ],
       },
     ],

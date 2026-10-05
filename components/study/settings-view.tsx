@@ -74,6 +74,14 @@ export default function SettingsView({ onAddSubject, bare }: { onAddSubject: () 
       <div className="card p-4 mt-3">
         <h3 className="font-bold text-sm">Target exam</h3>
         <div className="grid sm:grid-cols-2 gap-2 mt-2">
+          <label className="text-xs flex flex-col gap-1">Country
+            <select value={data.user.country} onChange={(e) => updateUser({ country: e.target.value })} className="px-3 py-2 rounded-lg text-sm" style={{ border: "1px solid var(--border)", background: "var(--bg)" }} aria-label="Country">
+              <option value="">Not set</option>
+              <option value="nepal">🇳🇵 Nepal</option>
+              <option value="india">🇮🇳 India</option>
+              <option value="usa">🇺🇸 USA</option>
+            </select>
+          </label>
           <label className="text-xs flex flex-col gap-1">Exam<input value={data.user.examName} onChange={(e) => updateUser({ examName: e.target.value })} placeholder="e.g. IOE Entrance" className="px-3 py-2 rounded-lg text-sm" style={{ border: "1px solid var(--border)", background: "var(--bg)" }} aria-label="Exam name" /></label>
           <label className="text-xs flex flex-col gap-1">Exam date<input type="date" value={data.user.examDate ? new Date(data.user.examDate).toISOString().slice(0, 10) : ""} onChange={(e) => { const ts = e.target.value ? new Date(e.target.value + "T00:00:00").getTime() : 0; updateUser({ examDate: ts }); }} className="px-3 py-2 rounded-lg text-sm" style={{ border: "1px solid var(--border)", background: "var(--bg)" }} aria-label="Exam date" /></label>
         </div>

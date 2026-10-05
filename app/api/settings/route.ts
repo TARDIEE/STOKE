@@ -7,6 +7,7 @@ const USER_FIELDS: Record<string, string> = {
   reminders: "reminders", morning: "morning", evening: "evening",
   frequency: "frequency", theme: "theme",
   examId: "exam_id", examName: "exam_name", examDate: "exam_date", focusGoal: "focus_goal",
+  country: "country",
 };
 const POMO_FIELDS: Record<string, string> = {
   focusMin: "focus_min", shortMin: "short_min", longMin: "long_min",

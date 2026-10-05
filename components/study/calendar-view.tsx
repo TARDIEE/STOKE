@@ -14,7 +14,7 @@ interface SchedItem {
   status: "open" | "done"; completedAt: number | null;
 }
 interface ExamInfo { id: string; name: string; date: number; daysLeft: number; }
-interface ExamOpt { id: string; name: string; region: string; tagline: string; typicalMonth: string; subjects: string[]; chapters: number; hours: number; }
+interface ExamOpt { id: string; name: string; region: string; tagline: string; typicalMonth: string; subjects: string[]; chapters: number; hours: number; country: string; level: string; grade: number | null; }
 interface CalData {
   exam: ExamInfo | null;
   serverNow: number;
@@ -501,13 +501,19 @@ function shortTitle(t: string) {
 /** Live ticking deadline countdown — days, hours, minutes, seconds. */
 
 function ExamSetup({ onSaved }: { onSaved: () => void }) {
-  const { updateUser, pushToast } = useStudy();
+  const { data, updateUser, pushToast } = useStudy();
   const [exams, setExams] = useState<ExamOpt[]>([]);
+  const [countries, setCountries] = useState<{ id: string; name: string; flag: string }[]>([]);
   const [picked, setPicked] = useState("");
   const [date, setDate] = useState("");
   useEffect(() => {
-    fetch("/api/exams").then((r) => r.json()).then((b) => setExams(b.exams)).catch(() => {});
+    fetch("/api/exams").then((r) => r.json()).then((b) => {
+      setExams(b.exams ?? []);
+      if (Array.isArray(b.countries)) setCountries(b.countries);
+    }).catch(() => {});
   }, []);
+  const userCountry = data?.user.country ?? "";
+  const visible = userCountry ? exams.filter((e) => e.country === userCountry) : exams;
   const save = async (withSyllabus: boolean) => {
     if (!picked) { pushToast({ title: "Pick the exam you're preparing for" }); return; }
     const ts = date ? new Date(date + "T00:00:00").getTime() : 0;
@@ -530,12 +536,25 @@ function ExamSetup({ onSaved }: { onSaved: () => void }) {
     <div className="card p-5 mt-4">
       <h3 className="font-bold">What are you preparing for?</h3>
       <p className="text-xs mt-1" style={{ color: "var(--ink-2)" }}>Stoke plans your chapters against the deadline and counts down every second.</p>
+      <div className="flex items-center gap-2 mt-2 text-xs">
+        <span style={{ color: "var(--ink-2)" }}>Showing exams for</span>
+        <select
+          value={userCountry}
+          onChange={(e) => updateUser({ country: e.target.value })}
+          className="px-2 py-1.5 rounded-lg text-xs font-bold"
+          style={{ border: "1px solid var(--border)", background: "var(--bg)" }}
+          aria-label="Country"
+        >
+          <option value="">All countries</option>
+          {countries.map((c) => <option key={c.id} value={c.id}>{c.flag} {c.name}</option>)}
+        </select>
+      </div>
       <div className="grid sm:grid-cols-2 gap-2 mt-3">
-        {exams.map((e) => (
+        {visible.map((e) => (
           <button key={e.id} onClick={() => setPicked(e.id)} className="p-3 rounded-xl text-left" style={{ border: picked === e.id ? "2px solid #7C3AED" : "1px solid var(--border)" }}>
             <div className="font-bold text-sm">{e.name}</div>
             <div className="text-[11px]" style={{ color: "var(--ink-2)" }}>{e.region} · {e.tagline}</div>
-            <div className="text-[11px] mt-1" style={{ color: "var(--ink-2)" }}>{e.subjects.join(" · ")} — {e.chapters} chapters (~{e.hours}h)</div>
+            <div className="text-[11px] mt-1" style={{ color: "var(--ink-2)" }}>{e.grade ? `Class ${e.grade} · ` : ""}{e.subjects.join(" · ")} — {e.chapters} chapters (~{e.hours}h)</div>
           </button>
         ))}
         <button onClick={() => setPicked("custom")} className="p-3 rounded-xl text-left" style={{ border: picked === "custom" ? "2px solid #7C3AED" : "1px solid var(--border)" }}>

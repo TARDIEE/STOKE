@@ -324,17 +324,26 @@ export function Onboarding({ step, setStep }: { step: number; setStep: (n: numbe
   const [name, setName] = useState(data?.user.name && data.user.name !== "Student" ? data.user.name : "");
   const [nameError, setNameError] = useState<string | null>(null);
   const [picked, setPicked] = useState<string[]>([]);
-  const [exams, setExams] = useState<{ id: string; name: string; region: string; tagline: string; subjects: string[]; chapters: number }[]>([]);
+  const [exams, setExams] = useState<{ id: string; name: string; region: string; tagline: string; subjects: string[]; chapters: number; country: string; level: string; grade: number | null }[]>([]);
+  const [countries, setCountries] = useState<{ id: string; name: string; flag: string }[]>([]);
+  const [country, setCountry] = useState("");
+  const [countryError, setCountryError] = useState<string | null>(null);
   const [examId, setExamId] = useState("");
   const [examDate, setExamDate] = useState("");
   const [examError, setExamError] = useState<string | null>(null);
   const presets = ["Mathematics", "Physics", "Chemistry", "Biology", "Computer Science", "English"];
-  const LAST = 4;
+  const LAST = 5;
   useEffect(() => {
-    fetch("/api/exams").then((r) => r.json()).then((b) => setExams(b.exams)).catch(() => {});
+    fetch("/api/exams").then((r) => r.json()).then((b) => {
+      setExams(b.exams);
+      if (Array.isArray(b.countries)) setCountries(b.countries);
+    }).catch(() => {});
   }, []);
   if (!data) return null;
+  const visibleExams = country ? exams.filter((e) => e.country === country) : exams;
   const finish = async () => {
+    // Save the country first — it decides the exam list everywhere.
+    if (country) updateUser({ country });
     // If an exam was chosen, save it and replace the demo subjects with the exam syllabus.
     if (examId) {
       const exam = exams.find((e) => e.id === examId);
@@ -368,7 +377,7 @@ export function Onboarding({ step, setStep }: { step: number; setStep: (n: numbe
     <div className="fixed inset-0 z-50 grid place-items-center p-4" role="dialog" aria-modal="true" aria-label="Onboarding">
       <div className="absolute inset-0" style={{ background: "rgba(15,10,31,.6)" }} />
       <div className="card relative w-full max-w-md p-6 fade-in max-h-[92vh] overflow-auto">
-        <div className="flex gap-1.5">{[0, 1, 2, 3, 4].map((i) => <div key={i} className="h-1.5 flex-1 rounded-full" style={{ background: i <= step ? "#7c3aed" : "var(--border)" }} />)}</div>
+        <div className="flex gap-1.5">{[0, 1, 2, 3, 4, 5].map((i) => <div key={i} className="h-1.5 flex-1 rounded-full" style={{ background: i <= step ? "#7c3aed" : "var(--border)" }} />)}</div>
         {step === 0 && (
           <div className="mt-4"><h2 className="text-xl font-bold">Welcome to your study system.</h2>
             <p className="text-sm mt-1" style={{ color: "var(--ink-2)" }}>Focus · Consistency · Memory · Progress. Open the app and immediately know what to study.</p>
@@ -377,16 +386,32 @@ export function Onboarding({ step, setStep }: { step: number; setStep: (n: numbe
           </div>
         )}
         {step === 1 && (
+          <div className="mt-4"><h2 className="text-xl font-bold">Which country are you studying in?</h2>
+            <p className="text-sm mt-1" style={{ color: "var(--ink-2)" }}>We show the classes and exams of your country — from school up to competitive exams.</p>
+            <div className="grid grid-cols-2 gap-2 mt-3">
+              {(countries.length ? countries : [{ id: "nepal", name: "Nepal", flag: "🇳🇵" }, { id: "india", name: "India", flag: "🇮🇳" }]).map((c) => (
+                <button key={c.id} onClick={() => { setCountry(c.id); setCountryError(null); setExamId(""); }}
+                  className={`p-3 rounded-xl text-left ${country === c.id ? "text-white" : ""}`}
+                  style={country === c.id ? { background: "#7c3aed" } : { border: "1px solid var(--border)" }}>
+                  <div className="text-2xl">{c.flag}</div>
+                  <div className="font-bold text-sm mt-1">{c.name}</div>
+                </button>
+              ))}
+            </div>
+            {countryError ? <p className="text-xs font-semibold mt-1" style={{ color: "#EF4444" }} role="alert">{countryError}</p> : <p className="text-[11px] mt-1" style={{ color: "var(--ink-2)" }}>More countries coming soon.</p>}
+          </div>
+        )}
+        {step === 2 && (
           <div className="mt-4"><h2 className="text-xl font-bold">What are you preparing for?</h2>
             <p className="text-sm mt-1" style={{ color: "var(--ink-2)" }}>Stoke plans your chapters against the exam deadline.</p>
             <div className="grid grid-cols-2 gap-2 mt-3">
-              {exams.map((e) => (
+              {visibleExams.map((e) => (
                 <button key={e.id} onClick={() => { setExamId(e.id); setExamError(null); setPicked(e.subjects); }}
                   className={`p-2.5 rounded-xl text-left ${examId === e.id ? "text-white" : ""}`}
                   style={examId === e.id ? { background: "#7c3aed" } : { border: "1px solid var(--border)" }}>
                   <div className="font-bold text-sm">{e.name}</div>
                   <div className="text-[11px] opacity-80">{e.region}</div>
-                  <div className="text-[11px] opacity-80">{e.chapters} chapters</div>
+                  <div className="text-[11px] opacity-80">{e.grade ? `Class ${e.grade} · ` : ""}{e.chapters} chapters</div>
                 </button>
               ))}
               <button onClick={() => { setExamId("custom"); setExamError(null); }}
@@ -402,7 +427,7 @@ export function Onboarding({ step, setStep }: { step: number; setStep: (n: numbe
             {examError && <p className="text-xs font-semibold mt-1" style={{ color: "#EF4444" }} role="alert">{examError}</p>}
           </div>
         )}
-        {step === 2 && (
+        {step === 3 && (
           <div className="mt-4"><h2 className="text-xl font-bold">What are you studying?</h2>
             <div className="flex flex-wrap gap-2 mt-3">{presets.map((p) => (
               <button key={p} onClick={() => setPicked((prev) => prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p])}
@@ -411,7 +436,7 @@ export function Onboarding({ step, setStep }: { step: number; setStep: (n: numbe
             ))}</div>
           </div>
         )}
-        {step === 3 && (
+        {step === 4 && (
           <div className="mt-4"><h2 className="text-xl font-bold">How do you like to focus?</h2>
             <div className="grid grid-cols-3 gap-2 mt-3">
               {[["25/5", 25, 5, 15], ["50/10", 50, 10, 20], ["Custom", 25, 5, 15]].map(([label, f, s, l]) => (
@@ -422,7 +447,7 @@ export function Onboarding({ step, setStep }: { step: number; setStep: (n: numbe
             </div>
           </div>
         )}
-        {step === 4 && (
+        {step === 5 && (
           <div className="mt-4"><h2 className="text-xl font-bold">Would you like study reminders?</h2>
             <p className="text-sm" style={{ color: "var(--ink-2)" }}>Get a nudge at 8:00 AM and 7:00 PM when reviews are due.</p>
             <button onClick={() => { updateUser({ reminders: !data.user.reminders }); if (!data.user.reminders) requestNotificationPermission(); }} className="btn-primary px-4 py-2 text-sm mt-3">{data.user.reminders ? "Reminders ON" : "Reminders OFF"}</button>
@@ -436,13 +461,17 @@ export function Onboarding({ step, setStep }: { step: number; setStep: (n: numbe
               if (!name.trim()) { setNameError("Please enter your name to continue."); return; }
               updateUser({ name: name.trim() });
             }
-            // Step 1 requires an exam + a future date (custom needs the date too for the countdown).
+            // Step 1 requires a country (decides the exam list).
             if (step === 1) {
+              if (!country) { setCountryError("Pick your country to continue."); return; }
+            }
+            // Step 2 requires an exam + a future date (custom needs the date too for the countdown).
+            if (step === 2) {
               if (!examId) { setExamError("Pick the exam you're preparing for."); return; }
               const ts = examDate ? new Date(examDate + "T00:00:00").getTime() : 0;
               if (!ts || ts <= Date.now()) { setExamError("Pick your exam date so Stoke can count down."); return; }
             }
-            if (step === 2 && !examId) picked.forEach((p) => { if (!data.subjects.some((s) => s.name === p)) addSubject(p, "", "#7C3AED"); });
+            if (step === 3 && !examId) picked.forEach((p) => { if (!data.subjects.some((s) => s.name === p)) addSubject(p, "", "#7C3AED"); });
             if (step < LAST) setStep(step + 1);
             else finish();
           }} className="btn-primary flex-1 py-2.5 text-sm">{step < LAST ? "Continue" : "Go to dashboard"}</button>

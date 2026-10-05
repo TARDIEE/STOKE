@@ -98,6 +98,8 @@ export interface UserState {
   examDate: number;
   /** daily focus goal in minutes */
   focusGoal: number;
+  /** country id (see COUNTRIES) — decides which exams are offered */
+  country: string;
   hasAiKey: boolean;
   streakMinSessions: number;
 }
