@@ -61,6 +61,19 @@ interface Cand {
   quadrant: Quadrant;
   count: number;
   score: number;
+  /** subtopic slice — tasks with the same refId+kind but different topics coexist */
+  topic: string;
+}
+
+/** Subtopics stored on a chapter row (JSON array), if any. */
+function chapterTopics(ch: Record<string, unknown> | undefined): string[] {
+  if (!ch) return [];
+  try {
+    const t = JSON.parse(String(ch.topics ?? "[]"));
+    return Array.isArray(t) ? t.filter((x): x is string => typeof x === "string" && x.length > 0) : [];
+  } catch {
+    return [];
+  }
 }
 
 /**
@@ -133,67 +146,85 @@ export async function ensureTodayPlan(userId: string, now: number, force = false
       quadrant: "q1",
       count: Number(m.count || 0),
       score: 200,
+      topic: "",
     });
   }
 
+  // One task per subtopic, never per whole chapter: a chapter's due cards are
+  // shared across its subtopic slices (rounded, marked ≈), so every plan item
+  // is the smallest finishable concept — same practice as the calendar.
   for (const g of byChapter.values()) {
     const revs = g.cardIds.map((id) => revByCard.get(id)).filter(Boolean) as Record<string, unknown>[];
     if (!revs.length) continue;
+    const ch = g.chapterId ? chRow.get(g.chapterId) : undefined;
+    const units = chapterTopics(ch);
+    const slices = units.length > 1 ? units : [""];
+    const title = groupTitle(g.chapterId, g.subjectId);
+    const share = (total: number) => {
+      const per = Math.floor(total / slices.length);
+      let rem = total % slices.length;
+      return slices.map(() => {
+        const n = per + (rem-- > 0 ? 1 : 0);
+        return n;
+      });
+    };
     const overdue = revs.filter((r) => Number(r.next_review_at) <= now);
     const relearnSoon = revs.filter((r) => r.state === "relearning" && Number(r.next_review_at) <= now + 6 * 3600_000);
     const dueToday = revs.filter((r) => Number(r.next_review_at) > now && Number(r.next_review_at) < t0 + 24 * 3600_000);
     const dueTomorrow = revs.filter((r) => Number(r.next_review_at) >= t0 + 24 * 3600_000 && Number(r.next_review_at) < tomorrowEnd);
     const upcoming = revs.filter((r) => Number(r.next_review_at) >= tomorrowEnd && Number(r.next_review_at) < t0 + 8 * 24 * 3600_000);
     const allNew = revs.length > 0 && revs.every((r) => Number(r.total_reviews) === 0);
-    const title = groupTitle(g.chapterId, g.subjectId);
+    const oldestOverdue = overdue.length ? Math.min(...overdue.map((r) => Number(r.next_review_at))) : now;
+    const daysLate = overdue.length ? Math.max(0, Math.floor((now - oldestOverdue) / 86400000)) : 0;
 
-    if (relearnSoon.length) {
-      cands.push({
-        kind: "review", refId: g.chapterId, refSubject: g.subjectId,
-        title: `Quick relearn: ${title}`, detail: `${relearnSoon.length} card${relearnSoon.length > 1 ? "s" : ""} due within hours`,
-        note: "10-minute relearning", quadrant: "q1", count: relearnSoon.length, score: 150,
+    const emit = (
+      kind: TaskKind, list: Record<string, unknown>[], base: Omit<Cand, "kind" | "refId" | "refSubject" | "title" | "count" | "topic">,
+      titleOf: (t: string) => string, detailOf: (n: number, total: number) => string
+    ) => {
+      if (!list.length) return;
+      const shares = share(list.length);
+      slices.forEach((t, i) => {
+        const n = shares[i];
+        if (!n) return;
+        cands.push({
+          kind, refId: g.chapterId, refSubject: g.subjectId,
+          title: t ? `${titleOf("")} — ${t}` : titleOf(""),
+          detail: slices.length > 1 ? `≈${n} of ${list.length} due · ${detailOf(n, list.length)}` : detailOf(n, list.length),
+          note: base.note, quadrant: base.quadrant, count: n, score: base.score, topic: t,
+        });
       });
-    }
-    if (overdue.length) {
-      const oldest = Math.min(...overdue.map((r) => Number(r.next_review_at)));
-      const daysLate = Math.max(0, Math.floor((now - oldest) / 86400000));
-      cands.push({
-        kind: "review", refId: g.chapterId, refSubject: g.subjectId,
-        title, detail: `${overdue.length} overdue review${overdue.length > 1 ? "s" : ""}${daysLate ? ` · ${daysLate}d late` : ""}`,
-        note: daysLate ? `${daysLate} day${daysLate > 1 ? "s" : ""} overdue` : "Overdue",
-        quadrant: "q1", count: overdue.length, score: 100 + daysLate * 10,
-      });
-    }
-    if (dueToday.length) {
-      cands.push({
-        kind: "review", refId: g.chapterId, refSubject: g.subjectId,
-        title, detail: `${dueToday.length} review${dueToday.length > 1 ? "s" : ""} due today`,
-        note: "Due today", quadrant: "q2", count: dueToday.length, score: 60,
-      });
-    }
+    };
+
+    emit("review", relearnSoon,
+      { detail: "", note: "10-minute relearning", quadrant: "q1", score: 150 },
+      () => `Quick relearn: ${title}`,
+      (n) => `${n} card${n > 1 ? "s" : ""} due within hours`);
+    emit("review", overdue,
+      { detail: "", note: daysLate ? `${daysLate} day${daysLate > 1 ? "s" : ""} overdue` : "Overdue", quadrant: "q1", score: 100 + daysLate * 10 },
+      () => title,
+      (n, total) => `${n} overdue review${n > 1 ? "s" : ""}${daysLate && n === total ? ` · ${daysLate}d late` : ""}`);
+    emit("review", dueToday,
+      { detail: "", note: "Due today", quadrant: "q2", score: 60 },
+      () => title,
+      (n) => `${n} review${n > 1 ? "s" : ""} due today`);
     if (allNew) {
-      cands.push({
-        kind: "learn", refId: g.chapterId, refSubject: g.subjectId,
-        title: `Learn: ${title}`, detail: `${revs.length} new card${revs.length > 1 ? "s" : ""} · start with a 25-min session`,
-        note: "New chapter", quadrant: "q2", count: revs.length, score: 50,
-      });
+      emit("learn", revs,
+        { detail: "", note: "New chapter", quadrant: "q2", score: 50 },
+        () => `Learn: ${title}`,
+        (n) => `${n} new card${n > 1 ? "s" : ""} · start with a 25-min session`);
     }
-    if (dueTomorrow.length) {
-      cands.push({
-        kind: "preview", refId: g.chapterId, refSubject: g.subjectId,
-        title: `Preview for tomorrow: ${title}`, detail: `${dueTomorrow.length} card${dueTomorrow.length > 1 ? "s" : ""} coming due`,
-        note: "Due tomorrow", quadrant: "q3", count: dueTomorrow.length, score: 20,
+    emit("preview", dueTomorrow,
+      { detail: "", note: "Due tomorrow", quadrant: "q3", score: 20 },
+      () => `Preview for tomorrow: ${title}`,
+      (n) => `${n} card${n > 1 ? "s" : ""} coming due`);
+    emit("preview", upcoming,
+      { detail: "", note: "Stays until due", quadrant: "q4", score: 5 },
+      () => title,
+      (n) => {
+        const soonest = Math.min(...upcoming.map((r) => Number(r.next_review_at)));
+        const inDays = Math.max(2, Math.round((soonest - now) / 86400000));
+        return `${n} card${n > 1 ? "s" : ""} due in ~${inDays}d — parked until due`;
       });
-    }
-    if (upcoming.length) {
-      const soonest = Math.min(...upcoming.map((r) => Number(r.next_review_at)));
-      const inDays = Math.max(2, Math.round((soonest - now) / 86400000));
-      cands.push({
-        kind: "preview", refId: g.chapterId, refSubject: g.subjectId,
-        title, detail: `${upcoming.length} card${upcoming.length > 1 ? "s" : ""} due in ~${inDays}d — parked until due`,
-        note: "Stays until due", quadrant: "q4", count: upcoming.length, score: 5,
-      });
-    }
   }
 
   // The calendar schedule: today's + missed chapter items, so students who
@@ -219,6 +250,7 @@ export async function ensureTodayPlan(userId: string, now: number, force = false
       quadrant: isPast ? "q1" : "q2",
       count: 0,
       score: isPast ? 120 : 55,
+      topic: "",
     });
     if (s.chapterId) covered.add(`${kind}:${s.chapterId}`);
   }
@@ -240,6 +272,7 @@ export async function ensureTodayPlan(userId: string, now: number, force = false
       quadrant: "q2",
       count: 0,
       score: 40,
+      topic: "",
     });
   }
 
@@ -247,11 +280,11 @@ export async function ensureTodayPlan(userId: string, now: number, force = false
   const picked: Cand[] = [];
   (["q1", "q2", "q3", "q4"] as Quadrant[]).forEach((q) => {
     const inQ = cands.filter((c) => c.quadrant === q).sort((a, b) => b.score - a.score);
-    // Don't duplicate a chapter already picked in a higher zone.
+    // Don't duplicate a chapter already picked in a higher zone (same subtopic slice).
     for (const c of inQ) {
       if (picked.length >= 8) break;
       if (picked.filter((p) => p.quadrant === q).length >= MAX_PER_QUADRANT) break;
-      if (c.refId && picked.some((p) => p.refId === c.refId && p.kind === c.kind)) continue;
+      if (c.refId && picked.some((p) => p.refId === c.refId && p.kind === c.kind && p.topic === c.topic)) continue;
       picked.push(c);
     }
   });
