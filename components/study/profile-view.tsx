@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Flame, LogOut, Target, Trash2 } from "lucide-react";
+import { Crown, Flame, LogOut, Target, Trash2 } from "lucide-react";
 import { fmtDur, useDerived, useStudy } from "@/lib/study-store";
 import SettingsView from "./settings-view";
+import { PremiumLockPanel } from "./premium-gate";
 
 /** Student profile: identity + lifetime stats on top, all settings below. */
 export default function ProfileView({ onAddSubject, onOpenCalendar }: {
@@ -85,6 +86,21 @@ export default function ProfileView({ onAddSubject, onOpenCalendar }: {
           <button onClick={onOpenCalendar} className="mt-3 inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-bold" style={{ background: "var(--primary-bg)", color: "#6D28D9" }}>
             <Target size={15} /> {data.user.examName || "Exam"} · {Math.floor(examMs / 86400000)}d {Math.floor((examMs % 86400000) / 3600000)}h left →
           </button>
+        )}
+      </div>
+
+      <h2 className="font-bold text-lg mt-6">Premium</h2>
+      <div className="mt-3">
+        {data.user.isPremium ? (
+          <div className="card p-4 flex items-center gap-2">
+            <Crown size={18} style={{ color: "#7C3AED" }} />
+            <div>
+              <div className="font-bold text-sm">Premium member</div>
+              <div className="text-xs" style={{ color: "var(--ink-2)" }}>AI flashcard generation is unlocked on your account.</div>
+            </div>
+          </div>
+        ) : (
+          <PremiumLockPanel />
         )}
       </div>
 

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { CalendarDays, Check, Circle, Layers, Shapes, Sparkles, Timer, Zap } from "lucide-react";
 import { requestNotificationPermission, useStudy, type Flashcard } from "@/lib/study-store";
 import { Modal, type View } from "./shared";
+import { PremiumLockPanel } from "./premium-gate";
 
 export function QuickAdd({ close, onSubject, onChapter, onCard, go }: { close: () => void; onSubject: () => void; onChapter: () => void; onCard: () => void; go: (v: View) => void }) {
   const { logSession, pushToast } = useStudy();
@@ -229,7 +230,9 @@ export function CardModal({ editId, subjectId, chapterId, close, inline }: { edi
       <h3 className="font-bold text-lg">{existing ? "Edit flashcard" : "New flashcard"}</h3>
       {!existing && (
         <>
-          <AiGenerator
+          {data?.user.isPremium ? (
+            <>
+              <AiGenerator
             topicDefault={activeChapter ? `${data.subjects.find((s) => s.id === sid)?.name ?? ""} — ${activeChapter.name}` : ""}
             chapterId={cid}
             sourceNotes={chapters.find((c) => c.id === cid)?.notes}
@@ -253,6 +256,10 @@ export function CardModal({ editId, subjectId, chapterId, close, inline }: { edi
               close();
             }}
           />
+            </>
+          ) : (
+            <PremiumLockPanel />
+          )}
         </>
       )}
       <label className="text-xs font-medium block mt-3">Front — question<textarea value={front} onChange={(e) => setFront(e.target.value)} rows={2} placeholder="Write your question…" className="w-full mt-1 px-3 py-2 rounded-xl text-sm" style={{ border: "1px solid var(--border)", background: "var(--bg)" }} aria-label="Card front" /></label>

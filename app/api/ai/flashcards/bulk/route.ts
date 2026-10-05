@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { q1 } from "@/lib/server/db";
 import { currentUser } from "@/lib/server/auth";
 import { generateCards, generateCardsOpen, getAiKey } from "@/lib/server/ai";
+import { isPremium } from "@/lib/server/premium";
 import { getDb } from "@/lib/server/db";
 
 /**
@@ -22,6 +23,13 @@ export async function POST(req: Request) {
     user.id, chapterId
   );
   if (!ch) return NextResponse.json({ error: "Chapter not found." }, { status: 404 });
+
+  if (!(await isPremium(user.id))) {
+    return NextResponse.json(
+      { error: "AI generation is a Premium feature. Redeem a code in Profile → Premium.", code: "PREMIUM_REQUIRED" },
+      { status: 403 }
+    );
+  }
 
   let topics: string[] = [];
   try {

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { batch, q, q1 } from "@/lib/server/db";
 import { currentUser } from "@/lib/server/auth";
 import { aiModelName, generateCards, generateCardsOpen, getAiKey } from "@/lib/server/ai";
+import { isPremium } from "@/lib/server/premium";
 import { getDb } from "@/lib/server/db";
 import { uid } from "@/lib/server/util";
 
@@ -46,6 +47,13 @@ export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
   const day = String(body?.day ?? "");
   if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return NextResponse.json({ error: "Bad day." }, { status: 400 });
+
+  if (!(await isPremium(user.id))) {
+    return NextResponse.json(
+      { error: "AI generation is a Premium feature. Redeem a code in Profile → Premium.", code: "PREMIUM_REQUIRED" },
+      { status: 403 }
+    );
+  }
 
   const db = await getDb();
   const key = await getAiKey(user.id, db);

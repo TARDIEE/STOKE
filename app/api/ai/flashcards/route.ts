@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { q1 } from "@/lib/server/db";
 import { currentUser } from "@/lib/server/auth";
 import { aiModelName, generateCards, generateCardsOpen, getAiKey } from "@/lib/server/ai";
+import { isPremium } from "@/lib/server/premium";
 import { getDb } from "@/lib/server/db";
 
 /** Generate flashcards on any topic with generative AI. */
@@ -13,6 +14,13 @@ export async function POST(req: Request) {
   const count = Math.max(1, Math.min(10, Number(body?.count ?? 5)));
   const notes = String(body?.notes ?? "").slice(0, 4000);
   if (!topic) return NextResponse.json({ error: "Describe the topic first." }, { status: 400 });
+
+  if (!(await isPremium(user.id))) {
+    return NextResponse.json(
+      { error: "AI generation is a Premium feature. Redeem a code in Profile → Premium.", code: "PREMIUM_REQUIRED" },
+      { status: 403 }
+    );
+  }
 
   const db = await getDb();
   const key = await getAiKey(user.id, db);

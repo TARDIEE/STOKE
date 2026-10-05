@@ -418,9 +418,13 @@ function DayTab({ day, items, stat, sessions, onClose, onToggle, onChanged, onOp
         <div className="mt-3 p-3 rounded-xl" style={{ background: "var(--bg)", border: "1px solid var(--border)" }}>
           <div className="flex items-center gap-2">
             <div className="text-xs font-bold flex-1">✨ AI questions for this day</div>
-            <button onClick={regenQuestions} disabled={aiBusy} className="text-[11px] font-bold px-2.5 py-1 rounded-lg shrink-0 disabled:opacity-50" style={{ background: "var(--primary-bg)", color: "#6D28D9" }}>
-              {aiBusy ? "Writing…" : questions.length ? <span className="inline-flex items-center gap-1"><RotateCcw size={13} /> New set</span> : "Generate"}
-            </button>
+            {data?.user.isPremium ? (
+              <button onClick={regenQuestions} disabled={aiBusy} className="text-[11px] font-bold px-2.5 py-1 rounded-lg shrink-0 disabled:opacity-50" style={{ background: "var(--primary-bg)", color: "#6D28D9" }}>
+                {aiBusy ? "Writing…" : questions.length ? <span className="inline-flex items-center gap-1"><RotateCcw size={13} /> New set</span> : "Generate"}
+              </button>
+            ) : (
+              <span className="text-[11px] font-bold px-2.5 py-1 rounded-lg shrink-0" style={{ background: "var(--primary-bg)", color: "#6D28D9" }}>Premium</span>
+            )}
           </div>
           <div className="text-[11px]" style={{ color: "var(--ink-2)" }}>
             {aiBusy && questions.length === 0 ? "Writing fresh questions from today's chapters…" : "Made fresh from this day's chapters — never yesterday's set."}

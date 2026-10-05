@@ -56,6 +56,7 @@ export interface DbUser {
   exam_date: number;
   focus_goal: number;
   country: string;
+  is_premium: number;
   /** AI key presence only — the key itself is never sent to the client */
   has_ai_key: number;
 }
@@ -65,7 +66,7 @@ export async function currentUser(): Promise<DbUser | null> {
   if (!token) return null;
   const th = createHash("sha256").update(token).digest("hex");
   const row = await q1<DbUser>(
-    "SELECT u.id, u.name, u.email, u.onboarded, u.focus_preset, u.reminders, u.morning, u.evening, u.frequency, u.theme, u.exam_id, u.exam_name, u.exam_date, u.focus_goal, u.country, (CASE WHEN u.ai_key != '' THEN 1 ELSE 0 END) AS has_ai_key FROM auth_sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = ? AND s.expires_at > ?",
+    "SELECT u.id, u.name, u.email, u.onboarded, u.focus_preset, u.reminders, u.morning, u.evening, u.frequency, u.theme, u.exam_id, u.exam_name, u.exam_date, u.focus_goal, u.country, u.is_premium, (CASE WHEN u.ai_key != '' THEN 1 ELSE 0 END) AS has_ai_key FROM auth_sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = ? AND s.expires_at > ?",
     th,
     Date.now()
   );
@@ -118,6 +119,7 @@ export function publicUser(u: DbUser) {
     examDate: Number(u.exam_date) || 0,
     focusGoal: Number(u.focus_goal) || 120,
     country: u.country || "",
+    isPremium: Number(u.is_premium) === 1,
     hasAiKey: u.has_ai_key === 1,
   };
 }

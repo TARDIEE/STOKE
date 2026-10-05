@@ -100,6 +100,7 @@ export interface UserState {
   focusGoal: number;
   /** country id (see COUNTRIES) — decides which exams are offered */
   country: string;
+  isPremium: boolean;
   hasAiKey: boolean;
   streakMinSessions: number;
 }

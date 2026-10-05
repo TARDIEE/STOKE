@@ -51,6 +51,6 @@ async function register(req: Request) {
   await run("INSERT INTO pomo_settings (user_id) VALUES (?)", id);
   await createSession(id);
 
-  const user = (await q1<DbUser>("SELECT id, name, email, onboarded, focus_preset, reminders, morning, evening, frequency, theme, exam_id, exam_name, exam_date, focus_goal, country, (CASE WHEN ai_key != '' THEN 1 ELSE 0 END) AS has_ai_key FROM users WHERE id = ?", id)) as DbUser;
+  const user = (await q1<DbUser>("SELECT id, name, email, onboarded, focus_preset, reminders, morning, evening, frequency, theme, exam_id, exam_name, exam_date, focus_goal, country, is_premium, (CASE WHEN ai_key != '' THEN 1 ELSE 0 END) AS has_ai_key FROM users WHERE id = ?", id)) as DbUser;
   return NextResponse.json({ user: publicUser(user) });
 }
