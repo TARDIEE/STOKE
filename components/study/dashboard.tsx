@@ -34,10 +34,10 @@ export default function Dashboard({ onReview, go, openSubject }: {
       </div>
       <GoalBar go={go} />
 
-      <div className="card p-5 mt-4">
-        <div className="flex items-center justify-between">
+      <div className="card p-5 mt-4 min-w-0">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="font-bold text-lg">Today&apos;s Study Plan</h2>
-          <button onClick={() => onReview()} className="btn-primary px-4 py-2 text-sm">Start Review</button>
+          <button onClick={() => onReview()} className="btn-primary px-4 py-2 text-sm shrink-0">Start Review</button>
         </div>
         <button onClick={() => go("plan")} className="text-xs font-bold mt-1" style={{ color: "#7C3AED" }}>Open the auto-adjusted 4-zone to-do list →</button>
         {firstDue && (
@@ -47,7 +47,7 @@ export default function Dashboard({ onReview, go, openSubject }: {
             </span>
             <span className="min-w-0">
               <span className="block text-[11px] font-bold uppercase tracking-widest opacity-80">Start with this one concept</span>
-              <span className="block font-bold truncate">{firstDueSubject?.name}{firstDueChapter ? ` — ${firstDueChapter.name}` : ""}</span>
+              <span className="block font-bold leading-snug" style={{ display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{firstDueSubject?.name}{firstDueChapter ? ` — ${firstDueChapter.name}` : ""}</span>
             </span>
           </button>
         )}

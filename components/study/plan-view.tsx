@@ -177,8 +177,8 @@ export default function PlanView({ onReview, go, onOpenChapter, onOpenCalendar }
             const list = items.filter((i) => i.quadrant === q);
             if (list.length === 0) return null;
             return (
-              <section key={q} className="card p-4" style={{ borderTop: `3px solid ${st.border}` }} aria-label={meta.title}>
-                <div className="flex items-center gap-2">
+              <section key={q} className="card p-4 min-w-0" style={{ borderTop: `3px solid ${st.border}` }} aria-label={meta.title}>
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                   <span className="text-[11px] font-bold px-2 py-0.5 rounded-full" style={{ background: st.badge, color: st.color }}>{meta.title}</span>
                   <span className="text-[11px]" style={{ color: "var(--ink-2)" }}>{meta.sub}</span>
                 </div>

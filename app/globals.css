@@ -39,6 +39,9 @@
 }
 
 html, body { height: 100%; }
+/* Never let any element force the page wider than the screen (no pinch-to-fit). */
+html, body { max-width: 100vw; overflow-x: clip; }
+img, svg, video, canvas { max-width: 100%; }
 body {
   background: var(--bg);
   color: var(--ink);
