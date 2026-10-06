@@ -61,7 +61,7 @@ export default function StudyView({ subjectSel, chapterSel, setSubjectSel, setCh
           <h1 className="text-2xl font-bold">{ch.name}</h1>
           <p className="text-sm" style={{ color: "var(--ink-2)" }}>{subj.name} · {ch.description || "Chapter"}</p>
           <div className="card p-4 mt-3">
-            <div className="flex justify-between text-xs mb-1.5" style={{ color: "var(--ink-2)" }}><span>Progress {progress}%</span><span>{fmtDur(studySec)} · {cards.length} cards · {due} due</span></div>
+            <div className="flex flex-wrap justify-between gap-x-3 gap-y-1 text-xs mb-1.5" style={{ color: "var(--ink-2)" }}><span>Progress {progress}%</span><span>{fmtDur(studySec)} · {cards.length} cards · {due} due</span></div>
             <div className="h-2 rounded-full overflow-hidden" style={{ background: "var(--border)" }}>
               <div className="h-full rounded-full progress-anim" style={{ width: `${progress}%`, background: "linear-gradient(90deg,#7C3AED,#A78BFA)" }} />
             </div>
@@ -80,7 +80,7 @@ export default function StudyView({ subjectSel, chapterSel, setSubjectSel, setCh
               {editNotes ? (
                 <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={6} className="w-full mt-2 p-2 rounded-lg text-sm" style={{ border: "1px solid var(--border)", background: "var(--bg)" }} aria-label="Chapter notes" />
               ) : (
-                <p className="text-sm mt-2 whitespace-pre-wrap" style={{ color: "var(--ink-2)" }}>{ch.notes || "No notes yet. Add study material for this chapter."}</p>
+                <p className="text-sm mt-2 whitespace-pre-wrap break-words" style={{ color: "var(--ink-2)" }}>{ch.notes || "No notes yet. Add study material for this chapter."}</p>
               )}
             </section>
             <section className="card p-4">
@@ -101,8 +101,8 @@ export default function StudyView({ subjectSel, chapterSel, setSubjectSel, setCh
                 const r = data.reviews[c.id];
                 return (
                   <div key={c.id} className="flex gap-2 items-center">
-                    <span className="truncate flex-1">{c.front}</span>
-                    <span className="text-xs" style={{ color: "var(--ink-2)" }}>{r ? nextLabel(r.nextReviewAt) : ""}</span>
+                    <span className="truncate flex-1 min-w-0">{c.front}</span>
+                    <span className="text-xs shrink-0" style={{ color: "var(--ink-2)" }}>{r ? nextLabel(r.nextReviewAt) : ""}</span>
                   </div>
                 );
               })}
@@ -138,7 +138,7 @@ function CardRow({ card }: { card: Flashcard }) {
         <div className="font-medium truncate">{card.front}</div>
         <div className="text-xs truncate" style={{ color: "var(--ink-2)" }}>{card.back} {r ? `· ${nextLabel(r.nextReviewAt)}` : ""}</div>
       </div>
-      <button onClick={() => setEdit(true)} className="text-xs font-bold" style={{ color: "#7C3AED" }} aria-label={`Edit ${card.front}`}>Edit</button>
+      <button onClick={() => setEdit(true)} className="text-xs font-bold shrink-0" style={{ color: "#7C3AED" }} aria-label={`Edit ${card.front}`}>Edit</button>
       <button onClick={() => deleteCard(card.id)} className="shrink-0" style={{ color: "#EF4444" }} aria-label={`Delete ${card.front}`}><X size={14} /></button>
     </div>
   );
