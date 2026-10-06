@@ -159,7 +159,11 @@ export default function PlanView({ onReview, go, onOpenChapter, onOpenCalendar }
       )}
 
       {loading && items.length === 0 ? (
-        <div className="card p-8 mt-4 text-center text-sm" style={{ color: "var(--ink-2)" }}>Building your plan…</div>
+        <div className="card p-4 mt-4 flex flex-col gap-2" aria-label="Loading plan">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="h-12 rounded-xl fade-in" style={{ background: "var(--bg)", animationDelay: `${i * 0.1}s` }} />
+          ))}
+        </div>
       ) : items.length === 0 ? (
         <div className="card p-8 mt-4 text-center">
           <div className="font-semibold">Nothing scheduled — enjoy the clear day.</div>
@@ -179,7 +183,9 @@ export default function PlanView({ onReview, go, onOpenChapter, onOpenCalendar }
             return (
               <section key={q} className="card p-4 min-w-0" style={{ borderTop: `3px solid ${st.border}` }} aria-label={meta.title}>
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                  <span className="text-[11px] font-bold px-2 py-0.5 rounded-full" style={{ background: st.badge, color: st.color }}>{meta.title}</span>
+                  <span className="text-[11px] font-bold px-2 py-0.5 rounded-full" style={{ background: st.badge, color: st.color }}>
+                    {meta.title} · {list.filter((i) => i.status === "open").length}
+                  </span>
                   <span className="text-[11px]" style={{ color: "var(--ink-2)" }}>{meta.sub}</span>
                 </div>
                 <div className="mt-2 flex flex-col gap-2">
@@ -235,7 +241,6 @@ export default function PlanView({ onReview, go, onOpenChapter, onOpenCalendar }
                       </div>
                     </div>
                   ))}
-                  {list.length === 0 && <div className="text-xs py-2" style={{ color: "var(--ink-2)" }}>Zone clear.</div>}
                 </div>
               </section>
             );
