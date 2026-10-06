@@ -163,7 +163,7 @@ export default function ReviewsView({ queue, pos, setPos, setQueue, showAnswer, 
             <button onClick={() => setShowAnswer(true)} className="btn-primary w-full py-3 text-sm mt-5" autoFocus>Show Answer (Space)</button>
           ) : (
             <div>
-              <div className="grid grid-cols-4 gap-2 mt-5">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-5">
                 {(["again", "hard", "good", "easy"] as Grade[]).map((g, i) => {
                   const iv = review ? previewIntervals(review)[g] : 0;
                   const colors: Record<Grade, string> = { again: "#EF4444", hard: "#F59E0B", good: "#7C3AED", easy: "#22C55E" };

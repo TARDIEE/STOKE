@@ -59,7 +59,7 @@ export default function SettingsView({ onAddSubject, bare }: { onAddSubject: () 
         <h3 className="font-bold text-sm">Study preferences</h3>
         <div className="mt-2 flex flex-col gap-2 text-sm">
           <Toggle label="Review reminders" on={data.user.reminders} set={(v) => updateUser({ reminders: v })} />
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             <label className="text-xs flex flex-col gap-1">Morning<input type="time" value={data.user.morning} onChange={(e) => updateUser({ morning: e.target.value })} className="px-2 py-1.5 rounded-lg" style={{ border: "1px solid var(--border)", background: "var(--bg)" }} aria-label="Reminder time" /></label>
             <label className="text-xs flex flex-col gap-1">Evening<input type="time" value={data.user.evening} onChange={(e) => updateUser({ evening: e.target.value })} className="px-2 py-1.5 rounded-lg" style={{ border: "1px solid var(--border)", background: "var(--bg)" }} aria-label="Evening reminder" /></label>
             <label className="text-xs flex flex-col gap-1">Frequency

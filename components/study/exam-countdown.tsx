@@ -41,7 +41,7 @@ export default function ExamCountdown() {
           <Target size={14} /> {data.user.examName || "Exam"} · {new Date(data.user.examDate).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
         </span>
       </div>
-      <div className="flex justify-center gap-3 md:gap-5 mt-3" role="timer" aria-label={`${d} days ${h} hours ${m} minutes left`}>
+      <div className="flex justify-center gap-2 md:gap-5 mt-3" role="timer" aria-label={`${d} days ${h} hours ${m} minutes left`}>
         <TimeBox n={d} label="days" hot={urgent} />
         <TimeBox n={h} label="hrs" hot={urgent} />
         <TimeBox n={m} label="min" hot={urgent} />
@@ -60,8 +60,8 @@ export default function ExamCountdown() {
 
 function TimeBox({ n, label, hot }: { n: number; label: string; hot: boolean }) {
   return (
-    <div className={`px-3 py-2 rounded-xl min-w-16 ${hot ? "pulse-ring rounded-xl" : ""}`} style={{ background: "var(--bg)", border: "1px solid var(--border)" }}>
-      <div className="text-2xl md:text-3xl font-bold timer-tabular" style={{ color: hot ? "#EF4444" : undefined }}>{String(n).padStart(2, "0")}</div>
+    <div className={`px-2 md:px-3 py-2 rounded-xl min-w-14 md:min-w-16 ${hot ? "pulse-ring rounded-xl" : ""}`} style={{ background: "var(--bg)", border: "1px solid var(--border)" }}>
+      <div className="text-xl md:text-3xl font-bold timer-tabular" style={{ color: hot ? "#EF4444" : undefined }}>{String(n).padStart(2, "0")}</div>
       <div className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "var(--ink-2)" }}>{label}</div>
     </div>
   );

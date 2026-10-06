@@ -38,7 +38,11 @@
       "typedRoutes": true
     },
     "extra": {
-      "webAppUrl": "http://stoke-study.runasp.net"
+      "webAppUrl": "http://stoke-study.runasp.net",
+      "router": {},
+      "eas": {
+        "projectId": "3750d619-84ad-4e8f-a955-ed98841883ed"
+      }
     }
   }
 }

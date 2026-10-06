@@ -246,9 +246,9 @@ export default function PlanView({ onReview, go, onOpenChapter, onOpenCalendar }
       <div className="grid md:grid-cols-2 gap-3 mt-3">
         <div className="card p-4">
           <h3 className="font-bold text-sm">+ Add your own task</h3>
-          <div className="flex gap-2 mt-2">
+          <div className="flex flex-wrap gap-2 mt-2">
             <input value={custom} onChange={(e) => setCustom(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") addCustom(); }}
-              placeholder="e.g. Revise chemistry notes" className="flex-1 px-3 py-2 rounded-xl text-sm" style={{ border: "1px solid var(--border)", background: "var(--bg)" }} aria-label="New task" />
+              placeholder="e.g. Revise chemistry notes" className="flex-1 min-w-40 px-3 py-2 rounded-xl text-sm" style={{ border: "1px solid var(--border)", background: "var(--bg)" }} aria-label="New task" />
             <select value={customQ} onChange={(e) => setCustomQ(e.target.value as Quadrant)} className="px-2 py-2 rounded-xl text-sm" style={{ border: "1px solid var(--border)", background: "var(--bg)" }} aria-label="Task zone">
               {QUADRANTS.map((q) => <option key={q} value={q}>{QUADRANT_META[q].title}</option>)}
             </select>

@@ -347,7 +347,7 @@ function DayTab({ day, items, stat, sessions, onClose, onToggle, onChanged, onOp
   return (
     <div className="fixed inset-0 z-40 p-4" role="dialog" aria-modal="true" aria-label={`Plan for ${day}`}>
       <div className="absolute inset-0" style={{ background: "rgba(15,10,31,.45)" }} onClick={onClose} />
-      <div className="card relative max-w-lg mx-auto mt-6 md:mt-14 p-5 fade-in max-h-[85vh] overflow-auto">
+      <div className="card relative max-w-lg mx-auto mt-6 md:mt-14 p-4 md:p-5 fade-in max-h-[85vh] overflow-auto">
         {full && !celebrated && <Celebrate title="Day complete — battery full!" onDone={() => setCelebrated(true)} />}
         <div className="flex items-center gap-2">
           <h3 className="font-bold text-lg">{new Date(day + "T12:00:00").toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}</h3>

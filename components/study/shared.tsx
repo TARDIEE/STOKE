@@ -101,7 +101,7 @@ export function Modal({ children, close, label }: { children: ReactNode; close: 
   return (
     <div className="fixed inset-0 z-40 grid place-items-center p-4" role="dialog" aria-modal="true" aria-label={label}>
       <div className="absolute inset-0" style={{ background: "rgba(15,10,31,.45)" }} onClick={close} />
-      <div className="card relative w-full max-w-md p-5 fade-in max-h-[90vh] overflow-auto">{children}</div>
+      <div className="card relative w-full max-w-md p-4 md:p-5 fade-in max-h-[90vh] overflow-auto">{children}</div>
     </div>
   );
 }
