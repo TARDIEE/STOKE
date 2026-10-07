@@ -32,7 +32,7 @@ const NAV: { id: View; label: string; icon: LucideIcon }[] = [
   { id: "stats", label: "Statistics", icon: BarChart3 },
   { id: "profile", label: "Profile", icon: UserRound },
 ];
-const MOBILE_NAV: View[] = ["dashboard", "study", "reviews", "pomodoro", "profile"];
+const MOBILE_NAV: View[] = ["dashboard", "plan", "study", "reviews", "pomodoro"];
 const VIEW_IDS: View[] = ["dashboard", "plan", "study", "reviews", "pomodoro", "subjects", "stats", "profile"];
 
 function hashFor(view: View, tab: ReviewTab, subjectId: string | null, chapterId: string | null) {
@@ -302,12 +302,22 @@ export default function StudyApp() {
       </div>
 
       {/* Mobile bottom nav */}
-      <nav className="mobile-only fixed bottom-0 left-0 right-0 z-20 flex justify-around px-2 py-2" style={{ background: "var(--card)", borderTop: "1px solid var(--border)" }} aria-label="Mobile">
+      <nav className="mobile-only fixed bottom-0 left-0 right-0 z-30 flex justify-around items-center px-1 py-1.5 shadow-lg" style={{ background: "var(--card)", borderTop: "1px solid var(--border)", paddingBottom: "max(6px, env(safe-area-inset-bottom))" }} aria-label="Mobile Navigation">
         {MOBILE_NAV.map((id) => {
           const n = NAV.find((x) => x.id === id)!;
+          const isActive = view === id;
+          const label = id === "dashboard" ? "Home" : id === "plan" ? "Plan" : n.label;
           return (
-            <button key={id} onClick={() => goTab(id)} className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl text-[11px] ${view === id ? "nav-active" : ""}`} style={view !== id ? { color: "var(--ink-2)" } : undefined}>
-              <n.icon size={22} />{n.label === "Dashboard" ? "Home" : n.label}
+            <button key={id} onClick={() => goTab(id)} className={`flex flex-col items-center justify-center min-w-[56px] min-h-[44px] px-2 py-1 rounded-xl text-[10px] font-bold transition-all ${isActive ? "nav-active scale-105" : "active:scale-95"}`} style={!isActive ? { color: "var(--ink-2)" } : undefined}>
+              <div className="relative">
+                <n.icon size={20} className="shrink-0" />
+                {id === "reviews" && d.dueToday > 0 && (
+                  <span className="absolute -top-1 -right-2 text-[9px] font-extrabold px-1.5 py-0.2 rounded-full text-white bg-purple-600 shadow-2xs">
+                    {d.dueToday}
+                  </span>
+                )}
+              </div>
+              <span className="mt-0.5 tracking-tight">{label}</span>
             </button>
           );
         })}

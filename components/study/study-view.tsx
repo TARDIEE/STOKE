@@ -41,74 +41,106 @@ export default function StudyView({ subjectSel, chapterSel, setSubjectSel, setCh
   const progress = cards.length ? Math.round((cards.filter((c) => (data.reviews[c.id]?.totalReviews ?? 0) > 0).length / cards.length) * 100) : 0;
 
   return (
-    <div>
-      <div className="flex flex-wrap gap-2">
+    <div className="space-y-6">
+      <div className="flex flex-wrap gap-2.5 pb-2 border-b border-border/40">
         {data.subjects.map((s) => (
-          <button key={s.id} onClick={() => { setSubjectSel(s.id); setChapterSel(null); }} className={`px-3 py-1.5 rounded-full text-sm font-medium ${s.id === subj.id ? "text-white" : ""}`} style={s.id === subj.id ? { background: "#7c3aed" } : { border: "1px solid var(--border)" }}>{s.name}</button>
+          <button key={s.id} onClick={() => { setSubjectSel(s.id); setChapterSel(null); }} className={`px-4 py-2 rounded-xl text-sm font-bold transition-all shadow-2xs ${s.id === subj.id ? "text-white shadow-md scale-102" : "hover:bg-secondary/80"}`} style={s.id === subj.id ? { background: "#7c3aed" } : { border: "1px solid var(--border)", color: "var(--ink)" }}>{s.name}</button>
         ))}
       </div>
-      <div className="flex gap-2 mt-4 overflow-x-auto pb-1">
+
+      <div className="flex items-center gap-2 overflow-x-auto pb-2">
         {chapters.map((c) => (
-          <button key={c.id} onClick={() => setChapterSel(c.id)} className={`px-3 py-2 rounded-xl text-sm whitespace-nowrap ${ch?.id === c.id ? "nav-active" : ""}`} style={ch?.id !== c.id ? { border: "1px solid var(--border)" } : undefined}>{c.name}</button>
+          <button key={c.id} onClick={() => setChapterSel(c.id)} className={`px-4 py-2.5 rounded-xl text-sm font-semibold whitespace-nowrap transition-all shadow-2xs ${ch?.id === c.id ? "bg-purple-500 text-white shadow-sm" : "hover:bg-secondary/60"}`} style={ch?.id !== c.id ? { border: "1px solid var(--border)", color: "var(--ink)" } : { background: "#7c3aed" }}>{c.name}</button>
         ))}
-        <button onClick={() => onAddChapter(subj.id)} className="px-3 py-2 rounded-xl text-sm whitespace-nowrap" style={{ border: "1px dashed var(--border)" }}>+ Chapter</button>
+        <button onClick={() => onAddChapter(subj.id)} className="px-4 py-2.5 rounded-xl text-sm font-semibold whitespace-nowrap transition-colors hover:bg-purple-500/10" style={{ border: "1px dashed var(--border)", color: "#7c3aed" }}>+ Chapter</button>
       </div>
 
       {!ch ? (
-        <div className="card p-8 mt-4 text-center text-sm" style={{ color: "var(--ink-2)" }}>No chapters yet. Add your first chapter to start learning.</div>
+        <div className="card p-12 text-center text-sm shadow-sm" style={{ color: "var(--ink-2)" }}>No chapters yet. Add your first chapter to start learning.</div>
       ) : (
-        <div className="mt-4">
-          <h1 className="text-2xl font-bold">{ch.name}</h1>
-          <p className="text-sm" style={{ color: "var(--ink-2)" }}>{subj.name} · {ch.description || "Chapter"}</p>
-          <div className="card p-4 mt-3">
-            <div className="flex flex-wrap justify-between gap-x-3 gap-y-1 text-xs mb-1.5" style={{ color: "var(--ink-2)" }}><span>Progress {progress}%</span><span>{fmtDur(studySec)} · {cards.length} cards · {due} due</span></div>
-            <div className="h-2 rounded-full overflow-hidden" style={{ background: "var(--border)" }}>
-              <div className="h-full rounded-full progress-anim" style={{ width: `${progress}%`, background: "linear-gradient(90deg,#7C3AED,#A78BFA)" }} />
+        <div className="space-y-4">
+          <div className="card p-6 shadow-sm bg-gradient-to-br from-card to-card/50">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div>
+                <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">{ch.name}</h1>
+                <p className="text-sm mt-1 font-medium" style={{ color: "var(--ink-2)" }}>{subj.name} · {ch.description || "Chapter Overview"}</p>
+              </div>
+              <span className="text-xs font-bold px-3 py-1 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400">
+                {progress}% Mastered
+              </span>
             </div>
-            <div className="flex flex-wrap gap-2 mt-3">
-              <button onClick={() => onReview(subj.id, ch.id)} className="btn-primary px-4 py-2 text-sm">Start Review ({due})</button>
-              <button onClick={() => { pomoStart("focus", subj.id, ch.id, "learn"); go("pomodoro"); }} className="px-4 py-2 text-sm font-semibold rounded-xl" style={{ border: "1px solid var(--border)" }}>Start 25 min Pomodoro</button>
-              <button onClick={() => onAddCard(subj.id, ch.id)} className="px-4 py-2 text-sm font-semibold rounded-xl" style={{ border: "1px solid var(--border)" }}>+ Flashcard</button>
+
+            <div className="mt-5 space-y-2">
+              <div className="flex flex-wrap justify-between gap-x-3 gap-y-1 text-xs font-semibold" style={{ color: "var(--ink-2)" }}>
+                <span>Progress</span>
+                <span>{fmtDur(studySec)} studied · {cards.length} cards · <b className="text-purple-600 dark:text-purple-400">{due} due</b></span>
+              </div>
+              <div className="h-2.5 rounded-full overflow-hidden bg-secondary shadow-inner" style={{ background: "var(--border)" }}>
+                <div className="h-full rounded-full progress-anim transition-all duration-500" style={{ width: `${progress}%`, background: "linear-gradient(90deg,#7C3AED,#A78BFA)" }} />
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row flex-wrap gap-2.5 mt-6">
+              <button onClick={() => onReview(subj.id, ch.id)} className="w-full sm:w-auto btn-primary px-5 py-3 text-sm font-bold shadow-md inline-flex items-center justify-center gap-2 active:scale-95">
+                🚀 Start Review ({due})
+              </button>
+              <button onClick={() => { pomoStart("focus", subj.id, ch.id, "learn"); go("pomodoro"); }} className="w-full sm:w-auto px-5 py-3 text-sm font-bold rounded-xl transition-colors hover:bg-secondary/80 shadow-2xs inline-flex items-center justify-center" style={{ border: "1px solid var(--border)" }}>
+                ⏱️ Start 25m Pomodoro
+              </button>
+              <button onClick={() => onAddCard(subj.id, ch.id)} className="w-full sm:w-auto px-5 py-3 text-sm font-bold rounded-xl transition-colors hover:bg-secondary/80 shadow-2xs inline-flex items-center justify-center" style={{ border: "1px solid var(--border)" }}>
+                ➕ Add Flashcard
+              </button>
             </div>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-3 mt-3">
-            <section className="card p-4">
-              <div className="flex items-center justify-between"><h3 className="font-bold">Learn — Notes</h3>
-                <button onClick={() => { if (editNotes) updateChapter(ch.id, { notes }); setEditNotes(!editNotes); }} className="text-xs font-bold" style={{ color: "#7C3AED" }}>{editNotes ? "Save" : "Edit"}</button>
+          <div className="grid md:grid-cols-2 gap-4">
+            <section className="card p-5 shadow-sm flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-extrabold text-base flex items-center gap-2"><span>📖</span> Learn & Notes</h3>
+                  <button onClick={() => { if (editNotes) updateChapter(ch.id, { notes }); setEditNotes(!editNotes); }} className="text-xs font-bold px-3 py-1 rounded-lg transition-colors hover:bg-purple-500/10" style={{ color: "#7C3AED" }}>
+                    {editNotes ? "Save Notes" : "Edit Notes"}
+                  </button>
+                </div>
+                {editNotes ? (
+                  <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={7} className="w-full p-3 rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-purple-500 shadow-inner" style={{ border: "1px solid var(--border)", background: "var(--bg)", color: "var(--ink)" }} aria-label="Chapter notes" />
+                ) : (
+                  <p className="text-sm leading-relaxed whitespace-pre-wrap break-words p-3 rounded-xl" style={{ color: "var(--ink-2)", background: "var(--bg)", border: "1px solid var(--border)" }}>{ch.notes || "No notes yet. Click 'Edit Notes' to add study material for this chapter."}</p>
+                )}
               </div>
-              {editNotes ? (
-                <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={6} className="w-full mt-2 p-2 rounded-lg text-sm" style={{ border: "1px solid var(--border)", background: "var(--bg)" }} aria-label="Chapter notes" />
-              ) : (
-                <p className="text-sm mt-2 whitespace-pre-wrap break-words" style={{ color: "var(--ink-2)" }}>{ch.notes || "No notes yet. Add study material for this chapter."}</p>
-              )}
             </section>
-            <section className="card p-4">
-              <div className="flex items-center justify-between"><h3 className="font-bold">Flashcards ({cards.length})</h3>
-                <button onClick={() => onAddCard(subj.id, ch.id)} className="text-xs font-bold" style={{ color: "#7C3AED" }}>+ Add</button>
+
+            <section className="card p-5 shadow-sm flex flex-col">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-extrabold text-base flex items-center gap-2"><span>📇</span> Flashcards ({cards.length})</h3>
+                <button onClick={() => onAddCard(subj.id, ch.id)} className="text-xs font-bold px-3 py-1 rounded-lg transition-colors hover:bg-purple-500/10" style={{ color: "#7C3AED" }}>+ Add Card</button>
               </div>
-              <div className="mt-2 flex flex-col gap-2 max-h-64 overflow-auto">
+              <div className="flex flex-col gap-2.5 max-h-72 overflow-auto pr-1">
                 {cards.slice(0, 20).map((c) => <CardRow key={c.id} card={c} />)}
-                {cards.length === 0 && <span className="text-sm" style={{ color: "var(--ink-2)" }}>No flashcards yet.</span>}
+                {cards.length === 0 && (
+                  <div className="py-8 text-center text-sm" style={{ color: "var(--ink-2)" }}>No flashcards yet. Create your first card to begin spaced repetition!</div>
+                )}
               </div>
             </section>
           </div>
 
-          <section className="card p-4 mt-3">
-            <h3 className="font-bold">Review schedule</h3>
-            <div className="mt-2 flex flex-col gap-1.5 text-sm">
+          <section className="card p-5 shadow-sm">
+            <h3 className="font-extrabold text-base mb-3 flex items-center gap-2"><span>📅</span> Review Schedule</h3>
+            <div className="flex flex-col gap-2 text-sm">
               {cards.slice(0, 8).map((c) => {
                 const r = data.reviews[c.id];
                 return (
-                  <div key={c.id} className="flex gap-2 items-center">
-                    <span className="truncate flex-1 min-w-0">{c.front}</span>
-                    <span className="text-xs shrink-0" style={{ color: "var(--ink-2)" }}>{r ? nextLabel(r.nextReviewAt) : ""}</span>
+                  <div key={c.id} className="flex gap-3 items-center p-2.5 rounded-xl transition-colors hover:bg-secondary/30" style={{ background: "var(--bg)", border: "1px solid var(--border)" }}>
+                    <span className="font-medium truncate flex-1 min-w-0">{c.front}</span>
+                    <span className="text-xs font-bold px-2.5 py-1 rounded-md shrink-0" style={{ background: "var(--card)", border: "1px solid var(--border)", color: "var(--ink-2)" }}>{r ? nextLabel(r.nextReviewAt) : "New"}</span>
                   </div>
                 );
               })}
-              {cards.length === 0 && <span className="text-sm" style={{ color: "var(--ink-2)" }}>Scheduled spaced-repetition cards will appear here.</span>}
+              {cards.length === 0 && <span className="text-sm italic py-2 text-center" style={{ color: "var(--ink-2)" }}>Scheduled spaced-repetition cards will appear here.</span>}
             </div>
-            <button onClick={() => deleteChapter(ch.id)} className="mt-3 text-xs font-semibold" style={{ color: "#EF4444" }}>Delete chapter</button>
+            <div className="mt-4 pt-3 border-t border-border/40 flex justify-end">
+              <button onClick={() => deleteChapter(ch.id)} className="text-xs font-bold px-3 py-1.5 rounded-lg transition-colors hover:bg-red-500/10" style={{ color: "#EF4444" }}>Delete Chapter</button>
+            </div>
           </section>
         </div>
       )}

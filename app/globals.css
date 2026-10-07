@@ -11,6 +11,12 @@
   --color-success: #22c55e;
   --color-warning: #f59e0b;
   --color-danger: #ef4444;
+  /* aliases to the runtime theme vars so card/border/secondary/muted
+     utilities work and follow light/dark automatically */
+  --color-card: var(--card);
+  --color-border: var(--border);
+  --color-secondary: var(--border);
+  --color-muted-foreground: var(--ink-2);
   --font-sans: "Inter Tight Variable", ui-sans-serif, system-ui, sans-serif;
 }
 

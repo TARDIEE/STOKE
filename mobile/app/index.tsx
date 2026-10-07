@@ -2,6 +2,7 @@
 // same logo) inside a native WebView. No re-implementation, so nothing can drift.
 import { useCallback, useEffect, useRef, useState } from "react";
 import { BackHandler, Image, Platform, Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import Constants from "expo-constants";
 import { WebView } from "react-native-webview";
 
@@ -52,7 +53,7 @@ export default function Home() {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: "#7c3aed" }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: "#7c3aed" }} edges={["top", "left", "right"]}>
       <WebView
         ref={webview}
         source={{ uri }}
@@ -106,6 +107,6 @@ export default function Home() {
           </ScrollView>
         </View>
       )}
-    </View>
+    </SafeAreaView>
   );
 }
