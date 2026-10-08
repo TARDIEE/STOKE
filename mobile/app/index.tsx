@@ -1,7 +1,7 @@
 // Stoke mobile shell — renders the REAL Stoke web app (same UI, same flows,
 // same logo) inside a native WebView. No re-implementation, so nothing can drift.
 import { useCallback, useEffect, useRef, useState } from "react";
-import { BackHandler, Image, Platform, Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
+import { ActivityIndicator, BackHandler, Image, Platform, Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Constants from "expo-constants";
 import { WebView } from "react-native-webview";
@@ -20,6 +20,9 @@ export default function Home() {
   const [failed, setFailed] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [canGoBack, setCanGoBack] = useState(false);
+  // Splash shows only for the initial launch — never flashes between pages.
+  const booted = useRef(false);
+  const isDevUrl = uri.includes("192.168.") || uri.includes("localhost");
 
   // Android back: walk the app's section history instead of exiting.
   useEffect(() => {
@@ -73,6 +76,7 @@ export default function Home() {
         onLoadEnd={() => {
           setLoading(false);
           setRefreshing(false);
+          booted.current = true;
         }}
         onError={() => {
           setLoading(false);
@@ -85,11 +89,12 @@ export default function Home() {
         renderLoading={() => <View />}
       />
 
-      {loading && !failed && (
+      {loading && !failed && !booted.current && (
         <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "#7c3aed", alignItems: "center", justifyContent: "center", gap: 12 }}>
           <Image source={require("../assets/logo.jpeg")} style={{ width: 112, height: 112, borderRadius: 28 }} />
           <Text style={{ color: "#fff", fontWeight: "800", fontSize: 22 }}>Stoke</Text>
           <Text style={{ color: "rgba(255,255,255,.8)", fontSize: 13 }}>Study, Remember, Focus</Text>
+          <ActivityIndicator size="large" color="#fff" style={{ marginTop: 8 }} />
         </View>
       )}
 
@@ -98,7 +103,9 @@ export default function Home() {
           <Image source={require("../assets/logo.jpeg")} style={{ width: 80, height: 80, borderRadius: 20 }} />
           <Text style={{ fontSize: 18, fontWeight: "800", marginTop: 8 }}>Couldn't reach Stoke</Text>
           <Text style={{ color: "#71717a", textAlign: "center", fontSize: 13 }}>
-            Start the web app first: {"\n"}`npm run dev` in the Stoke folder,{"\n"}then make sure this phone is on the same Wi-Fi.{"\n"}Trying: {uri}
+            {isDevUrl
+              ? `Start the web app first:\n\`npm run dev\` in the Stoke folder,\nthen make sure this phone is on the same Wi-Fi.\nTrying: ${uri}`
+              : `Check your connection and try again.\nThe server may be waking up — give it a minute.\nTrying: ${uri}`}
           </Text>
           <ScrollView refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); reload(); }} />}>
             <Pressable onPress={reload} style={{ marginTop: 12, backgroundColor: "#7c3aed", borderRadius: 12, paddingVertical: 12, paddingHorizontal: 32 }}>
