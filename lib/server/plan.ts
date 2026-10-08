@@ -63,6 +63,8 @@ interface Cand {
   score: number;
   /** subtopic slice — tasks with the same refId+kind but different topics coexist */
   topic: string;
+  /** pushed ahead from a missed day — placed first, never dropped */
+  carried?: boolean;
 }
 
 /** Subtopics stored on a chapter row (JSON array), if any. */
@@ -79,6 +81,10 @@ function chapterTopics(ch: Record<string, unknown> | undefined): string[] {
 /**
  * Build today's to-do list from spaced-repetition state.
  *
+ * Rotation rule (strict): one subject → one chapter → one concept per day.
+ * Every subject moves together, systematically — never three slices of the
+ * same subject in one day.
+ *
  * Priority order (Ebbinghaus forgetting curve + SM-2 retrieval practice):
  *  1. Missed low-priority items from yesterday escalate to Q1 (spacing accountability).
  *  2. Short relearning items due within hours (10-min "again" cards) — Q1.
@@ -87,7 +93,7 @@ function chapterTopics(ch: Record<string, unknown> | undefined): string[] {
  *  5. Brand-new chapters to learn today — Q2.
  *  6. Reviews due tomorrow (preview) — Q3.
  *  7. Upcoming reviews stay parked in Q4 until they come due — never pulled early.
- * Max 3 tasks per quadrant (12 total) so every due subject stays visible.
+ * Max 3 tasks per quadrant (12 total); each zone holds distinct subjects.
  */
 export async function ensureTodayPlan(userId: string, now: number, force = false): Promise<PlanItem[]> {
   const today = dayStr(now);
@@ -147,6 +153,7 @@ export async function ensureTodayPlan(userId: string, now: number, force = false
       count: Number(m.count || 0),
       score: 200,
       topic: "",
+      carried: true,
     });
   }
 
@@ -251,6 +258,7 @@ export async function ensureTodayPlan(userId: string, now: number, force = false
       count: 0,
       score: isPast ? 120 : 55,
       topic: "",
+      carried: isPast || undefined,
     });
     if (s.chapterId) covered.add(`${kind}:${s.chapterId}`);
   }
@@ -276,27 +284,54 @@ export async function ensureTodayPlan(userId: string, now: number, force = false
     });
   }
 
-  // Max 3 per quadrant → 12 total. Highest score wins each zone, but one
-  // chapter's subtopic slices must not crowd out other subjects: first pass
-  // takes at most one task per subject per quadrant (round-robin by score),
-  // second pass fills leftover slots with the next-best tasks.
+  // Max 3 per quadrant → 12 total, with the strict rotation rule: one
+  // subject appears at most ONCE per day (one chapter, one concept).
+  // Debt (missed days) is placed first so every subject is pushed ahead
+  // together — overflow debt cascades into later zones instead of being
+  // dropped, keeping the rotation systematic.
+  const ZONES: Quadrant[] = ["q1", "q2", "q3", "q4"];
   const picked: Cand[] = [];
-  (["q1", "q2", "q3", "q4"] as Quadrant[]).forEach((q) => {
-    const inQ = cands.filter((c) => c.quadrant === q).sort((a, b) => b.score - a.score);
-    const inQuorum = () => picked.filter((p) => p.quadrant === q).length;
-    const take = (onePerSubject: boolean) => {
-      for (const c of inQ) {
-        if (picked.length >= 12) break;
-        if (inQuorum() >= MAX_PER_QUADRANT) break;
-        // Don't duplicate a chapter already picked in a higher zone (same subtopic slice).
-        if (c.refId && picked.some((p) => p.refId === c.refId && p.kind === c.kind && p.topic === c.topic)) continue;
-        if (onePerSubject && picked.some((p) => p.quadrant === q && (p.refSubject || "") === (c.refSubject || ""))) continue;
-        picked.push(c);
-      }
-    };
-    take(true);
-    take(false);
-  });
+  const usedSubjects = new Set<string>();
+  const inQuorum = (qq: Quadrant) => picked.filter((p) => p.quadrant === qq).length;
+  const dupe = (c: Cand) =>
+    !!c.refId && picked.some((p) => p.refId === c.refId && p.kind === c.kind && p.topic === c.topic);
+
+  // Phase 1 — debt first: every carried subject moves ahead, in zone order.
+  const debt = cands
+    .filter((c) => c.carried)
+    .sort((a, b) => ZONES.indexOf(a.quadrant) - ZONES.indexOf(b.quadrant) || b.score - a.score);
+  for (const c of debt) {
+    if (picked.length >= 12) break;
+    if (dupe(c)) continue;
+    const s = c.refSubject || "";
+    if (usedSubjects.has(s)) continue;
+    let placed: Quadrant | null = null;
+    for (let i = ZONES.indexOf(c.quadrant); i < ZONES.length; i++) {
+      if (inQuorum(ZONES[i]) < MAX_PER_QUADRANT) { placed = ZONES[i]; break; }
+    }
+    if (!placed) continue;
+    picked.push(
+      placed === c.quadrant
+        ? c
+        : { ...c, quadrant: placed, note: `Pushed from ${QUADRANT_META[c.quadrant].title} · ${c.note}` }
+    );
+    usedSubjects.add(s);
+  }
+
+  // Phase 2 — fresh candidates fill their own zone only, new subjects only.
+  for (const q of ZONES) {
+    const inQ = cands
+      .filter((c) => c.quadrant === q && !c.carried)
+      .sort((a, b) => b.score - a.score);
+    for (const c of inQ) {
+      if (picked.length >= 12 || inQuorum(q) >= MAX_PER_QUADRANT) break;
+      if (dupe(c)) continue;
+      const s = c.refSubject || "";
+      if (usedSubjects.has(s)) continue;
+      picked.push(c);
+      usedSubjects.add(s);
+    }
+  }
 
   const base = Date.now();
   await batch(
