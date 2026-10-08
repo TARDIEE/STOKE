@@ -2,27 +2,17 @@
 
 import { useEffect, useState } from "react";
 import { Target } from "lucide-react";
-import { useStudy } from "@/lib/study-store";
+import { useDerived, useStudy } from "@/lib/study-store";
+import type { View } from "./shared";
 
 /** Live ticking exam countdown — lives on the dashboard (main page). */
-export default function ExamCountdown() {
+export default function ExamCountdown({ go }: { go: (v: View) => void }) {
   const { data } = useStudy();
   const [, tick] = useState(0);
-  const [totals, setTotals] = useState({ planned: 0, done: 0 });
 
   useEffect(() => {
     const iv = setInterval(() => tick((t) => t + 1), 1000);
     return () => clearInterval(iv);
-  }, []);
-
-  useEffect(() => {
-    fetch("/api/schedule?all=1")
-      .then((r) => r.json())
-      .then((b) => {
-        const items = Object.values((b.plan ?? {}) as Record<string, { status: string }[]>).flat();
-        setTotals({ planned: items.length, done: items.filter((i) => i.status === "done").length });
-      })
-      .catch(() => {});
   }, []);
 
   if (!data || !data.user.examDate) return null;
@@ -32,7 +22,6 @@ export default function ExamCountdown() {
   const m = Math.floor((ms % 3600000) / 60000);
   const s = Math.floor((ms % 60000) / 1000);
   const urgent = d < 7;
-  const pct = totals.planned ? Math.round((totals.done / totals.planned) * 100) : 0;
 
   return (
     <div className="card p-5 mt-4 text-center" style={{ borderColor: urgent ? "#EF4444" : "#7C3AED", borderWidth: 2 }}>
@@ -50,11 +39,29 @@ export default function ExamCountdown() {
       <p className="text-xs mt-2 font-semibold" style={{ color: urgent ? "#EF4444" : "var(--ink-2)" }}>
         {ms <= 0 ? "Exam day is here. Give it everything." : urgent ? "Final week. Every hour counts — no zero days." : "The clock is ticking. Small steps every day win."}
       </p>
-      <div className="h-1.5 rounded-full mt-2 overflow-hidden" style={{ background: "var(--border)" }}>
-        <div className="h-full progress-anim" style={{ width: `${pct}%`, background: urgent ? "#EF4444" : "linear-gradient(90deg,#7C3AED,#A78BFA)" }} />
-      </div>
-      <div className="text-[11px] mt-1" style={{ color: "var(--ink-2)" }}>Syllabus plan: {totals.done}/{totals.planned} done ({pct}%)</div>
+      <GoalBar go={go} />
     </div>
+  );
+}
+
+/** Daily focus goal progress — minutes studied vs target. */
+function GoalBar({ go }: { go: (v: View) => void }) {
+  const { data } = useStudy();
+  const d = useDerived();
+  if (!data) return null;
+  const goalMin = Math.max(15, data.user.focusGoal || 120);
+  const doneMin = Math.floor(d.todayFocus / 60);
+  const pct = Math.min(100, Math.round((doneMin / goalMin) * 100));
+  return (
+    <button onClick={() => go("pomodoro")} className="w-full text-left mt-3" aria-label={`Daily goal ${doneMin} of ${goalMin} minutes`}>
+      <div className="flex justify-between text-xs" style={{ color: "var(--ink-2)" }}>
+        <span className="font-bold flex items-center gap-1.5" style={{ color: "var(--ink)" }}><Target size={14} /> Daily goal: {doneMin}/{goalMin} min</span>
+        <span>{pct >= 100 ? "Goal smashed!" : `${pct}%`}</span>
+      </div>
+      <div className="h-2 rounded-full mt-2 overflow-hidden" style={{ background: "var(--border)" }}>
+        <div className="h-full rounded-full progress-anim" style={{ width: `${pct}%`, background: pct >= 100 ? "#22C55E" : "linear-gradient(90deg,#7C3AED,#A78BFA)" }} />
+      </div>
+    </button>
   );
 }
 

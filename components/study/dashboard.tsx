@@ -1,30 +1,30 @@
 "use client";
 
-import { Play, Target } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Flame } from "lucide-react";
 import { fmtDur, useDerived, useStudy } from "@/lib/study-store";
-import { Empty, SessionRow, greeting, type View } from "./shared";
+import { SessionRow, greeting, type View } from "./shared";
 import ExamCountdown from "./exam-countdown";
 
-export default function Dashboard({ onReview, go, openSubject }: {
+export default function Dashboard({ onReview, go, onOpenChapter }: {
   onReview: (s?: string | null, c?: string | null) => void;
   go: (v: View) => void;
-  openSubject: (id: string) => void;
+  onOpenChapter: (subjectId: string, chapterId: string) => void;
 }) {
   const { data } = useStudy();
   const d = useDerived();
   if (!data) return null;
-  // The single most overdue concept — today's starting point, one concept only.
-  const firstDue = d.dueCards[0];
-  const firstDueChapter = firstDue ? data.chapters.find((c) => c.id === firstDue.chapterId) : null;
-  const firstDueSubject = firstDue ? data.subjects.find((s) => s.id === firstDue.subjectId) : null;
-  const rec = d.overdue > 0
-    ? `Start with ${d.overdue} overdue card${d.overdue > 1 ? "s" : ""}.`
-    : d.dueToday > 0 ? `${d.dueToday} review${d.dueToday > 1 ? "s" : ""} due today — clear them first.` : "You're caught up. Bank some focus time.";
   return (
     <div>
-      <h1 className="text-2xl md:text-3xl font-bold tracking-tight">{greeting()}, {data.user.name || "Student"}</h1>
-      <p className="text-sm mt-1" style={{ color: "var(--ink-2)" }}>Let&apos;s make today&apos;s study session count. {rec}</p>
-      <ExamCountdown />
+      <div className="flex items-center gap-2 flex-wrap">
+        <h1 className="text-2xl md:text-3xl font-bold tracking-tight">{greeting()}, {data.user.name || "Student"}</h1>
+        <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full ml-auto" style={d.streak >= 2 ? { background: "var(--primary-bg)", color: "#6D28D9" } : { border: "1px solid var(--border)", color: "var(--ink-2)" }}>
+          <Flame size={13} className="inline -mt-0.5" /> {d.streak >= 2 ? `${d.streak} day streak` : "0"}
+        </span>
+      </div>
+      <ExamCountdown go={go} />
+
+      <DoToday onReview={onReview} onOpenChapter={onOpenChapter} go={go} />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-5">
         <StatCard label="Reviews Due" value={String(d.dueToday)} sub={d.overdue ? `${d.overdue} overdue` : "Due today"} action={() => onReview()} actionLabel="Start Review" />
@@ -32,50 +32,95 @@ export default function Dashboard({ onReview, go, openSubject }: {
         <StatCard label="Streak" value={d.streak >= 2 ? `${d.streak} days` : "—"} sub={d.streak >= 2 ? `longest ${d.longest}` : "study 2 days in a row"} action={() => go("profile")} actionLabel="Details" />
         <StatCard label="Pomodoros" value={String(d.todayPomos)} sub="completed today" action={() => go("pomodoro")} actionLabel="Start" />
       </div>
-      <GoalBar go={go} />
 
-      <div className="card p-5 mt-4 min-w-0">
-        <h2 className="font-bold text-lg">Today&apos;s Study Plan</h2>
-        {firstDue && (
-          <button onClick={() => onReview(firstDue.subjectId)} className="w-full text-left p-3 rounded-xl mt-3 flex items-center gap-3 text-white" style={{ background: "linear-gradient(135deg,#7C3AED,#5B21B6)" }}>
-            <span className="w-9 h-9 rounded-full grid place-items-center shrink-0" style={{ background: "rgba(255,255,255,.2)" }}>
-              <Play size={16} className="ml-0.5" />
-            </span>
-            <span className="min-w-0">
-              <span className="block text-[11px] font-bold uppercase tracking-widest opacity-80">Start with this one concept</span>
-              <span className="block font-bold leading-snug" style={{ display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{firstDueSubject?.name}{firstDueChapter ? ` — ${firstDueChapter.name}` : ""}</span>
-            </span>
-          </button>
-        )}
-        {d.plan.filter((p) => p.due > 0).length === 0 && !firstDue ? (
-          <Empty title="You're all caught up." body="Nothing needs reviewing right now." action={() => go("study")} actionLabel="Browse study library" />
-        ) : (
-          <button onClick={() => go("plan")} className="text-xs font-bold mt-3" style={{ color: "#7C3AED" }}>Open today&apos;s tasks & calendar →</button>
-        )}
+      <div className="card p-5 mt-4">
+        <h3 className="font-bold">Recent Activity</h3>
+        <div className="mt-2 text-sm flex flex-col gap-2">
+          {data.sessions.slice(0, 4).map((s) => (
+            <SessionRow key={s.id} sid={s.subjectId} cid={s.chapterId} text={`${fmtDur(s.durationSec)} · ${s.completed ? "Completed" : "Interrupted"}`} date={s.start} label={s.label} />
+          ))}
+          {data.sessions.length === 0 && <span style={{ color: "var(--ink-2)" }}>Your focus time will appear here after your first session.</span>}
+        </div>
       </div>
+    </div>
+  );
+}
 
-      <div className="grid md:grid-cols-2 gap-3 mt-4">
-        <div className="card p-5">
-          <h3 className="font-bold">Continue Studying</h3>
-          <div className="flex flex-wrap gap-2 mt-3">
-            {data.subjects.slice(0, 6).map((s) => (
-              <button key={s.id} onClick={() => openSubject(s.id)} className="px-3 py-2 rounded-xl text-sm font-medium" style={{ background: "var(--bg)", border: "1px solid var(--border)" }}>
-                {s.name}
-              </button>
-            ))}
-            {data.subjects.length === 0 && <span className="text-sm" style={{ color: "var(--ink-2)" }}>No subjects yet.</span>}
+interface DoTodayTask {
+  id: string;
+  kind: "review" | "learn" | "preview" | "custom";
+  quadrant: "q1" | "q2" | "q3" | "q4";
+  refId: string;
+  refSubject: string;
+  title: string;
+  detail: string;
+  status: "open" | "done";
+}
+
+/** The Plan's "Do today" zone, surfaced on the home page. */
+function DoToday({ onReview, onOpenChapter, go }: {
+  onReview: (s?: string | null, c?: string | null) => void;
+  onOpenChapter: (subjectId: string, chapterId: string) => void;
+  go: (v: View) => void;
+}) {
+  const [tasks, setTasks] = useState<DoTodayTask[]>([]);
+  const [openCount, setOpenCount] = useState(0);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/plan")
+      .then((r) => r.json())
+      .then((b) => {
+        const items = Array.isArray(b.items) ? b.items : [];
+        const open = items.filter((i: DoTodayTask) => i.quadrant === "q2" && i.status === "open");
+        setOpenCount(open.length);
+        setTasks(open.slice(0, 5));
+      })
+      .catch(() => {})
+      .finally(() => setLoaded(true));
+  }, []);
+
+  const toggle = async (it: DoTodayTask) => {
+    setTasks((prev) => prev.filter((x) => x.id !== it.id));
+    setOpenCount((n) => Math.max(0, n - 1));
+    try {
+      await fetch(`/api/plan/${it.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "done" }) });
+    } catch { /* keep optimistic */ }
+  };
+
+  const start = (it: DoTodayTask) => {
+    if (it.kind === "custom") { toggle(it); return; }
+    if (it.kind === "learn" && it.refId) { onOpenChapter(it.refSubject || "", it.refId); return; }
+    onReview(it.refSubject || null, it.refId || null);
+  };
+
+  if (!loaded) return null;
+  if (tasks.length === 0) return null;
+
+  return (
+    <div className="card p-5 mt-4 min-w-0">
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="font-bold text-lg">Do today · {openCount} left</h2>
+        <button onClick={() => go("plan")} className="text-xs font-bold shrink-0" style={{ color: "#7C3AED" }}>Open plan →</button>
+      </div>
+      <p className="text-xs mt-0.5" style={{ color: "var(--ink-2)" }}>Due today & new learning</p>
+      <div className="mt-3 flex flex-col gap-2">
+        {tasks.map((it) => (
+          <div key={it.id} className="p-3 rounded-xl flex items-center gap-3" style={{ background: "var(--bg)", border: "1px solid var(--border)" }}>
+            <button onClick={() => toggle(it)} role="checkbox" aria-checked={false} aria-label={`Mark ${it.title} done`}
+              className="w-5 h-5 rounded-lg grid place-items-center shrink-0 transition-transform active:scale-90"
+              style={{ background: "transparent", border: "2px solid var(--ink-2)" }}>
+              {""}
+            </button>
+            <div className="min-w-0 flex-1">
+              <div className="text-sm font-semibold truncate">{it.title}</div>
+              {it.detail && <div className="text-xs truncate" style={{ color: "var(--ink-2)" }}>{it.detail}</div>}
+            </div>
+            <button onClick={() => start(it)} className="text-xs font-bold px-3 py-1.5 rounded-lg text-white shrink-0 active:scale-95" style={{ background: "#7c3aed" }}>
+              {it.kind === "custom" ? "Done" : it.kind === "learn" ? "Learn →" : it.kind === "preview" ? "Preview →" : "Review →"}
+            </button>
           </div>
-          <button onClick={() => go("pomodoro")} className="btn-primary w-full mt-4 py-2.5 text-sm">Start 25 min Pomodoro</button>
-        </div>
-        <div className="card p-5">
-          <h3 className="font-bold">Recent Activity</h3>
-          <div className="mt-2 text-sm flex flex-col gap-2">
-            {data.sessions.slice(0, 4).map((s) => (
-              <SessionRow key={s.id} sid={s.subjectId} cid={s.chapterId} text={`${fmtDur(s.durationSec)} · ${s.completed ? "Completed" : "Interrupted"}`} date={s.start} label={s.label} />
-            ))}
-            {data.sessions.length === 0 && <span style={{ color: "var(--ink-2)" }}>Your focus time will appear here after your first session.</span>}
-          </div>
-        </div>
+        ))}
       </div>
     </div>
   );
@@ -89,27 +134,6 @@ function StatCard({ label, value, sub, action, actionLabel }: { label: string; v
       <div className="text-[11px]" style={{ color: "var(--ink-2)" }}>{sub}</div>
       <button onClick={action} className="mt-2 text-xs font-bold" style={{ color: "#7C3AED" }}>{actionLabel} →</button>
     </div>
-  );
-}
-
-/** Daily focus goal progress — minutes studied vs target. */
-function GoalBar({ go }: { go: (v: View) => void }) {
-  const { data } = useStudy();
-  const d = useDerived();
-  if (!data) return null;
-  const goalMin = Math.max(15, data.user.focusGoal || 120);
-  const doneMin = Math.floor(d.todayFocus / 60);
-  const pct = Math.min(100, Math.round((doneMin / goalMin) * 100));
-  return (
-    <button onClick={() => go("pomodoro")} className="card p-4 mt-3 w-full text-left" aria-label={`Daily goal ${doneMin} of ${goalMin} minutes`}>
-      <div className="flex justify-between text-xs" style={{ color: "var(--ink-2)" }}>
-        <span className="font-bold flex items-center gap-1.5" style={{ color: "var(--ink)" }}><Target size={14} /> Daily goal: {doneMin}/{goalMin} min</span>
-        <span>{pct >= 100 ? "Goal smashed!" : `${pct}%`}</span>
-      </div>
-      <div className="h-2 rounded-full mt-2 overflow-hidden" style={{ background: "var(--border)" }}>
-        <div className="h-full rounded-full progress-anim" style={{ width: `${pct}%`, background: pct >= 100 ? "#22C55E" : "linear-gradient(90deg,#7C3AED,#A78BFA)" }} />
-      </div>
-    </button>
   );
 }
 

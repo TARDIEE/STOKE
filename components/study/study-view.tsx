@@ -35,7 +35,7 @@ export default function StudyView({ subjectSel, chapterSel, setSubjectSel, setCh
   const ch = chapters.find((c) => c.id === chapterSel) ?? chapters[0] ?? null;
   if (ch && notesFor !== ch.id) { setNotesFor(ch.id); setNotes(ch.notes ?? ""); setEditNotes(false); }
 
-  if (!subj) return <EmptyState go={go} />;
+  if (!subj) return <EmptyState go={go} onAddSubject={onAddSubject} />;
 
   const cards = data.cards.filter((c) => (ch ? c.chapterId === ch.id : c.subjectId === subj.id));
   const now = Date.now();
@@ -181,12 +181,12 @@ export default function StudyView({ subjectSel, chapterSel, setSubjectSel, setCh
   );
 }
 
-function EmptyState({ go }: { go: (v: View) => void }) {
+function EmptyState({ go, onAddSubject }: { go: (v: View) => void; onAddSubject: () => void }) {
   return (
     <div className="card p-8 mt-4 text-center">
       <div className="font-semibold">No subjects yet.</div>
       <div className="text-sm mt-1" style={{ color: "var(--ink-2)" }}>Create your first subject and start building your study system.</div>
-      <button onClick={() => go("subjects")} className="btn-primary px-4 py-2 text-sm mt-3">+ Create Subject</button>
+      <button onClick={onAddSubject} className="btn-primary px-4 py-2 text-sm mt-3">+ Create Subject</button>
     </div>
   );
 }

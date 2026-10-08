@@ -4,14 +4,9 @@
     "slug": "stoke-study",
     "version": "0.1.0",
     "orientation": "portrait",
-    "icon": "./assets/logo.jpeg",
+    "icon": "./assets/icon.png",
     "scheme": "stoke",
     "userInterfaceStyle": "automatic",
-    "splash": {
-      "image": "./assets/logo.jpeg",
-      "resizeMode": "contain",
-      "backgroundColor": "#7c3aed"
-    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.stoke.study"
@@ -19,12 +14,13 @@
     "android": {
       "package": "com.stoke.study",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/logo.jpeg",
+        "foregroundImage": "./assets/adaptive-foreground.png",
         "backgroundColor": "#7c3aed"
       }
     },
     "plugins": [
       "expo-router",
+      "expo-splash-screen",
       [
         "expo-build-properties",
         {

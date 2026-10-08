@@ -246,7 +246,7 @@ export default function StudyApp() {
     setView("reviews");
   };
 
-  const openSubject = (id: string) => { setSubjectSel(id); setChapterSel(null); setView("subjects"); };
+  const openSubject = (id: string) => { setSubjectSel(id); setChapterSel(null); setView("study"); };
   const openChapter = (sid: string, cid: string) => { setSubjectSel(sid); setChapterSel(cid); setView("study"); };
   /** Start a 25-min re-read Pomodoro: revise what was already read. */
   const startReRead = (subjectId?: string | null, chapterId?: string | null) => {
@@ -291,7 +291,7 @@ export default function StudyApp() {
           onBack={() => { try { window.history.back(); } catch { /* ignore */ } }}
         />
         <main className="max-w-5xl mx-auto px-4 md:px-8 pt-4 page-enter" key={view + (chapterSel || "") + (subjectSel || "")}>
-          {view === "dashboard" && <Dashboard onReview={startReview} go={goTab} openSubject={openSubject} />}
+          {view === "dashboard" && <Dashboard onReview={startReview} go={goTab} onOpenChapter={openChapter} />}
           {view === "plan" && (
             <PlanPage
               tab={planTab} setTab={setPlanTab}
@@ -340,7 +340,7 @@ export default function StudyApp() {
         ))}
       </div>
 
-      {sheet?.name === "quickadd" && <QuickAdd close={closeSheet} onSubject={() => openSheet({ name: "subject" })} onChapter={() => { setSheet(null); setView("subjects"); }} onCard={() => openSheet({ name: "card" })} go={goTab} />}
+      {sheet?.name === "quickadd" && <QuickAdd close={closeSheet} onSubject={() => openSheet({ name: "subject" })} onChapter={() => { setSheet(null); setView("study"); }} onCard={() => openSheet({ name: "card" })} go={goTab} />}
       {sheet?.name === "search" && <SearchOverlay close={closeSheet} openSubject={openSubject} openChapter={openChapter} goReview={(id) => { setSheet(null); setReviewQueue([id]); setReviewPos(0); setShowAnswer(false); setView("reviews"); }} />}
       {sheet?.name === "card" && <CardModal editId={sheet.editId} subjectId={sheet.subjectId} chapterId={sheet.chapterId} close={closeSheet} />}
       {sheet?.name === "subject" && <SubjectModal close={closeSheet} />}
@@ -392,9 +392,6 @@ function Topbar({ onSearch, onAdd, setView, onBack, showBack }: { onSearch: () =
         {new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}
       </div>
       <div className="ml-auto flex items-center gap-2">
-        <span className="hidden sm:inline-flex text-xs font-semibold px-2.5 py-1 rounded-full" style={d.streak >= 2 ? { background: "var(--primary-bg)", color: "#6D28D9" } : { border: "1px solid var(--border)", color: "var(--ink-2)" }}>
-          {d.streak >= 2 ? <><Flame size={13} className="inline -mt-0.5" /> {d.streak} day streak</> : "Study 2 days to start a streak"}
-        </span>
         <button onClick={onSearch} className="md:hidden px-3 py-2 rounded-xl text-sm" style={{ border: "1px solid var(--border)" }} aria-label="Search"><Search size={16} /></button>
         <button onClick={onAdd} className="btn-primary px-4 py-2 text-sm">+ Add</button>
         <button onClick={() => setView("profile")} className="w-9 h-9 rounded-full grid place-items-center text-sm font-bold text-white" style={{ background: "#7c3aed" }} aria-label="Profile">

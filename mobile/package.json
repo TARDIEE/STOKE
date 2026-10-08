@@ -11,12 +11,13 @@
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "2.2.0",
-    "expo": "~57.0.0",
+    "expo": "~57.0.27",
     "expo-build-properties": "~57.0.0",
-    "expo-constants": "~57.0.0",
+    "expo-constants": "~57.0.21",
     "expo-haptics": "~57.0.0",
-    "expo-linking": "~57.0.0",
-    "expo-router": "~57.0.0",
+    "expo-linking": "~57.0.12",
+    "expo-router": "~57.0.25",
+    "expo-splash-screen": "~57.0.9",
     "expo-status-bar": "~57.0.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
@@ -28,7 +29,6 @@
   },
   "devDependencies": {
     "@types/react": "~19.2.2",
-    "eas-cli": "^24.8.0",
     "typescript": "~6.0.3"
   }
 }
