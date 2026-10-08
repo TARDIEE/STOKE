@@ -10,7 +10,6 @@ import { dayKey, useDerived, useStudy } from "@/lib/study-store";
 import { useNow, type View } from "./study/shared";
 import AuthScreen from "./study/auth-screen";
 import Dashboard from "./study/dashboard";
-import PlanView from "./study/plan-view";
 import { AppLogo } from "./study/logo";
 import StudyView from "./study/study-view";
 import ReviewsView from "./study/reviews-view";
@@ -372,7 +371,6 @@ function GlobalSearchButton({ onClick }: { onClick: () => void }) {
 
 function Topbar({ onSearch, onAdd, setView, onBack, showBack }: { onSearch: () => void; onAdd: () => void; setView: (v: View) => void; onBack: () => void; showBack: boolean }) {
   const { data } = useStudy();
-  const d = useDerived();
   useEffect(() => {
     const fn = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") { e.preventDefault(); onSearch(); }
