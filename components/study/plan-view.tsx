@@ -143,7 +143,7 @@ export default function PlanView({ onReview, go, onOpenChapter, onOpenCalendar }
           </div>
           <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">Today&apos;s Plan</h1>
           <p className="text-sm mt-1" style={{ color: "var(--ink-2)" }}>
-            Auto-built from your spaced-repetition schedule — max 8 tasks in 4 prioritized zones.
+            Auto-built from your spaced-repetition schedule — max 12 tasks in 4 prioritized zones.
           </p>
         </div>
         <button onClick={() => load(true)} className="btn-primary px-5 py-2.5 text-sm font-bold shadow-md inline-flex items-center gap-2 transition-transform hover:scale-105 active:scale-95" disabled={loading}>

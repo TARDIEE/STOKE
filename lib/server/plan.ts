@@ -27,7 +27,7 @@ export const QUADRANT_META: Record<Quadrant, { title: string; sub: string }> = {
   q4: { title: "Later", sub: "Upcoming — stays until due" },
 };
 
-export const MAX_PER_QUADRANT = 2;
+export const MAX_PER_QUADRANT = 3;
 
 function dayStr(ts: number) {
   const d = new Date(ts);
@@ -87,7 +87,7 @@ function chapterTopics(ch: Record<string, unknown> | undefined): string[] {
  *  5. Brand-new chapters to learn today — Q2.
  *  6. Reviews due tomorrow (preview) — Q3.
  *  7. Upcoming reviews stay parked in Q4 until they come due — never pulled early.
- * Max 2 tasks per quadrant (8 total) to respect working-memory limits.
+ * Max 3 tasks per quadrant (12 total) so every due subject stays visible.
  */
 export async function ensureTodayPlan(userId: string, now: number, force = false): Promise<PlanItem[]> {
   const today = dayStr(now);
@@ -276,13 +276,13 @@ export async function ensureTodayPlan(userId: string, now: number, force = false
     });
   }
 
-  // Max 2 per quadrant → 8 total. Highest score wins each zone.
+  // Max 3 per quadrant → 12 total. Highest score wins each zone.
   const picked: Cand[] = [];
   (["q1", "q2", "q3", "q4"] as Quadrant[]).forEach((q) => {
     const inQ = cands.filter((c) => c.quadrant === q).sort((a, b) => b.score - a.score);
     // Don't duplicate a chapter already picked in a higher zone (same subtopic slice).
     for (const c of inQ) {
-      if (picked.length >= 8) break;
+      if (picked.length >= 12) break;
       if (picked.filter((p) => p.quadrant === q).length >= MAX_PER_QUADRANT) break;
       if (c.refId && picked.some((p) => p.refId === c.refId && p.kind === c.kind && p.topic === c.topic)) continue;
       picked.push(c);
