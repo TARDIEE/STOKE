@@ -2,7 +2,7 @@
 
 import { Play, Target } from "lucide-react";
 import { fmtDur, useDerived, useStudy } from "@/lib/study-store";
-import { Dot, Empty, SessionRow, Urgency, greeting, type View } from "./shared";
+import { Empty, SessionRow, greeting, type View } from "./shared";
 import ExamCountdown from "./exam-countdown";
 
 export default function Dashboard({ onReview, go, openSubject }: {
@@ -29,17 +29,13 @@ export default function Dashboard({ onReview, go, openSubject }: {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-5">
         <StatCard label="Reviews Due" value={String(d.dueToday)} sub={d.overdue ? `${d.overdue} overdue` : "Due today"} action={() => onReview()} actionLabel="Start Review" />
         <StatCard label="Study Time" value={fmtDur(d.todayFocus)} sub="today" action={() => go("pomodoro")} actionLabel="Focus" />
-        <StatCard label="Streak" value={d.streak >= 2 ? `${d.streak} days` : "—"} sub={d.streak >= 2 ? `longest ${d.longest}` : "study 2 days in a row"} action={() => go("stats")} actionLabel="Details" />
+        <StatCard label="Streak" value={d.streak >= 2 ? `${d.streak} days` : "—"} sub={d.streak >= 2 ? `longest ${d.longest}` : "study 2 days in a row"} action={() => go("profile")} actionLabel="Details" />
         <StatCard label="Pomodoros" value={String(d.todayPomos)} sub="completed today" action={() => go("pomodoro")} actionLabel="Start" />
       </div>
       <GoalBar go={go} />
 
       <div className="card p-5 mt-4 min-w-0">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="font-bold text-lg">Today&apos;s Study Plan</h2>
-          <button onClick={() => onReview()} className="btn-primary px-4 py-2 text-sm shrink-0">Start Review</button>
-        </div>
-        <button onClick={() => go("plan")} className="text-xs font-bold mt-1" style={{ color: "#7C3AED" }}>Open the auto-adjusted 4-zone to-do list →</button>
+        <h2 className="font-bold text-lg">Today&apos;s Study Plan</h2>
         {firstDue && (
           <button onClick={() => onReview(firstDue.subjectId)} className="w-full text-left p-3 rounded-xl mt-3 flex items-center gap-3 text-white" style={{ background: "linear-gradient(135deg,#7C3AED,#5B21B6)" }}>
             <span className="w-9 h-9 rounded-full grid place-items-center shrink-0" style={{ background: "rgba(255,255,255,.2)" }}>
@@ -51,24 +47,10 @@ export default function Dashboard({ onReview, go, openSubject }: {
             </span>
           </button>
         )}
-        {d.plan.filter((p) => p.due > 0).length === 0 ? (
-          <Empty title="You're all caught up." body="Nothing needs reviewing right now." action={() => go("subjects")} actionLabel="Browse subjects" />
+        {d.plan.filter((p) => p.due > 0).length === 0 && !firstDue ? (
+          <Empty title="You're all caught up." body="Nothing needs reviewing right now." action={() => go("study")} actionLabel="Browse study library" />
         ) : (
-          <div className="mt-3 divide-y" style={{ borderColor: "var(--border)" }}>
-            {d.plan.filter((p) => p.due > 0).slice(0, 5).map(({ subject, due }) => {
-              const ch = data.chapters.find((c) => c.subjectId === subject.id);
-              return (
-                <div key={subject.id} className="py-3 flex items-center gap-3">
-                  <Dot color={subject.color} />
-                  <div className="min-w-0">
-                    <div className="font-semibold text-sm">{subject.name}{ch ? <span style={{ color: "var(--ink-2)", fontWeight: 400 }}> · {ch.name}</span> : null}</div>
-                    <div className="text-xs" style={{ color: "var(--ink-2)" }}>{due} reviews <Urgency n={due} /></div>
-                  </div>
-                  <button onClick={() => onReview(subject.id)} className="ml-auto text-sm font-semibold px-3 py-1.5 rounded-lg" style={{ background: "var(--primary-bg)", color: "#6D28D9" }}>Start Review</button>
-                </div>
-              );
-            })}
-          </div>
+          <button onClick={() => go("plan")} className="text-xs font-bold mt-3" style={{ color: "#7C3AED" }}>Open today&apos;s tasks & calendar →</button>
         )}
       </div>
 

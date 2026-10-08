@@ -134,7 +134,7 @@ export default function PomodoroView({ go }: { go: (v: View) => void }) {
           {today.slice(0, 6).map((x) => <SessionRow key={x.id} sid={x.subjectId} cid={x.chapterId} text={`${fmtDur(x.durationSec)} · ${x.completed ? "Completed" : "Interrupted"}`} date={x.start} label={x.label} />)}
           {today.length === 0 && <span className="text-sm" style={{ color: "var(--ink-2)" }}>No sessions yet today.</span>}
         </div>
-        <button onClick={() => go("stats")} className="text-xs font-bold mt-2" style={{ color: "#7C3AED" }}>View statistics →</button>
+        <button onClick={() => go("profile")} className="text-xs font-bold mt-2" style={{ color: "#7C3AED" }}>View statistics →</button>
       </div>
     </div>
   );

@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import {
-  BarChart3, BookOpen, ChevronLeft, Flame, LayoutDashboard, ListChecks,
-  RotateCcw, Search, Shapes, Timer, TriangleAlert, UserRound,
+  BookOpen, ChevronLeft, Flame, LayoutDashboard, ListChecks,
+  RotateCcw, Search, Timer, TriangleAlert, UserRound,
   type LucideIcon,
 } from "lucide-react";
 import { dayKey, useDerived, useStudy } from "@/lib/study-store";
@@ -13,11 +13,10 @@ import Dashboard from "./study/dashboard";
 import PlanView from "./study/plan-view";
 import { AppLogo } from "./study/logo";
 import StudyView from "./study/study-view";
-import ReviewsPage, { type ReviewTab } from "./study/review-calendar";
+import ReviewsView from "./study/reviews-view";
 import PomodoroView from "./study/pomodoro-view";
-import SubjectsView from "./study/subjects-view";
-import StatsView from "./study/stats-view";
 import ProfileView from "./study/profile-view";
+import PlanPage, { type PlanTab } from "./study/plan-page";
 import {
   CardModal, ChapterModal, Onboarding, QuickAdd, SearchOverlay, SubjectModal,
 } from "./study/modals";
@@ -28,15 +27,13 @@ const NAV: { id: View; label: string; icon: LucideIcon }[] = [
   { id: "study", label: "Study", icon: BookOpen },
   { id: "reviews", label: "Review", icon: RotateCcw },
   { id: "pomodoro", label: "Pomodoro", icon: Timer },
-  { id: "subjects", label: "Subjects", icon: Shapes },
-  { id: "stats", label: "Statistics", icon: BarChart3 },
   { id: "profile", label: "Profile", icon: UserRound },
 ];
 const MOBILE_NAV: View[] = ["dashboard", "plan", "study", "reviews", "pomodoro"];
 const VIEW_IDS: View[] = ["dashboard", "plan", "study", "reviews", "pomodoro", "subjects", "stats", "profile"];
 
-function hashFor(view: View, tab: ReviewTab, subjectId: string | null, chapterId: string | null) {
-  if (view === "reviews") return tab === "calendar" ? "#/reviews/calendar" : "#/reviews";
+function hashFor(view: View, planTab: PlanTab, subjectId: string | null, chapterId: string | null) {
+  if (view === "plan") return planTab === "calendar" ? "#/plan/calendar" : "#/plan";
   if (view === "study") return subjectId ? (chapterId ? `#/study/${subjectId}/${chapterId}` : `#/study/${subjectId}`) : "#/study";
   if (view === "subjects") return subjectId ? `#/subjects/${subjectId}` : "#/subjects";
   return `#/${view}`;
@@ -44,17 +41,28 @@ function hashFor(view: View, tab: ReviewTab, subjectId: string | null, chapterId
 
 const SHEET_NAMES = ["quickadd", "search", "card", "subject", "chapter"];
 
-function parseHash(): { view: View; tab: ReviewTab; subjectId: string | null; chapterId: string | null; sheet: string | null } | null {
+function parseHash(): { view: View; planTab: PlanTab; subjectId: string | null; chapterId: string | null; sheet: string | null } | null {
   const [path, suffix] = window.location.hash.split("~");
   const m = path.match(/^#\/([a-z]+)(?:\/([^/]+))?(?:\/([^/]+))?$/);
   if (!m) return null;
-  const view = m[1] as View;
-  if (!VIEW_IDS.includes(view)) return null;
+  const rawView = m[1] as View;
+  if (!VIEW_IDS.includes(rawView)) return null;
+  let view = rawView;
+  // Legacy links: the calendar used to live under Review, and Subjects and
+  // Statistics used to be standalone destinations.
+  let planTab: PlanTab = "tasks";
+  if (view === "plan" && m[2] === "calendar") planTab = "calendar";
+  if (view === "reviews" && m[2] === "calendar") {
+    view = "plan";
+    planTab = "calendar";
+  }
+  if (view === "subjects") view = "study";
+  if (view === "stats") view = "profile";
   return {
     view,
-    tab: view === "reviews" && m[2] === "calendar" ? "calendar" : "review",
-    subjectId: view === "study" || view === "subjects" ? (m[2] ?? null) : null,
-    chapterId: view === "study" ? (m[3] ?? null) : null,
+    planTab,
+    subjectId: rawView === "study" || rawView === "subjects" ? (m[2] ?? null) : null,
+    chapterId: rawView === "study" ? (m[3] ?? null) : null,
     sheet: suffix && SHEET_NAMES.includes(suffix) ? suffix : null,
   };
 }
@@ -80,7 +88,7 @@ export default function StudyApp() {
   const [reviewPos, setReviewPos] = useState(0);
   const [showAnswer, setShowAnswer] = useState(false);
   const [reviewFilter, setReviewFilter] = useState<string | null>(null);
-  const [reviewTab, setReviewTab] = useState<ReviewTab>("review");
+  const [planTab, setPlanTab] = useState<PlanTab>("tasks");
   const [onboardStep, setOnboardStep] = useState(0);
 
   // Section history: record every section AND popup in browser history so the
@@ -101,17 +109,17 @@ export default function StudyApp() {
   const goTab = (id: View) => {
     if (id === view && !sheet) {
       if (id === "reviews") {
-        setReviewTab("review");
         setReviewFilter(null);
         setReviewPos(0);
         setShowAnswer(false);
       }
       if (id === "study") setChapterSel(null);
+      if (id === "plan") setPlanTab("tasks");
       try { window.scrollTo({ top: 0, behavior: "smooth" }); } catch { /* ignore */ }
       return;
     }
     setView(id);
-    if (id === "reviews") setReviewTab("review");
+    if (id === "plan") setPlanTab("tasks");
   };
 
   useEffect(() => {
@@ -119,13 +127,13 @@ export default function StudyApp() {
       const parsed = parseHash();
       if (parsed) {
         setView(parsed.view);
-        setReviewTab(parsed.tab);
+        setPlanTab(parsed.planTab);
         setSubjectSel(parsed.subjectId);
         setChapterSel(parsed.chapterId);
         // Popups need their payload (e.g. which card is edited), which only
         // exists in-memory — never auto-open one on a fresh load.
       } else if (!window.location.hash) {
-        window.history.replaceState(null, "", hashFor("dashboard", "review", null, null));
+        window.history.replaceState(null, "", hashFor("dashboard", "tasks", null, null));
       }
     } catch { /* non-browser env */ }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -133,12 +141,12 @@ export default function StudyApp() {
 
   useEffect(() => {
     try {
-      const base = hashFor(view, reviewTab, subjectSel, chapterSel);
+      const base = hashFor(view, planTab, subjectSel, chapterSel);
       const h = sheetName ? `${base}~${sheetName}` : base;
       if (window.location.hash !== h) window.history.pushState(sheet ? { ...sheet } : null, "", h);
     } catch { /* non-browser env */ }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view, reviewTab, subjectSel, chapterSel, sheetName]);
+  }, [view, planTab, subjectSel, chapterSel, sheetName]);
 
   useEffect(() => {
     const onPop = (e: PopStateEvent) => {
@@ -146,7 +154,7 @@ export default function StudyApp() {
         const parsed = parseHash();
         if (!parsed) return;
         setView(parsed.view);
-        setReviewTab(parsed.tab);
+        setPlanTab(parsed.planTab);
         setSubjectSel(parsed.subjectId);
         setChapterSel(parsed.chapterId);
         const st = (e.state as null | { name?: string }) ?? null;
@@ -284,20 +292,19 @@ export default function StudyApp() {
         />
         <main className="max-w-5xl mx-auto px-4 md:px-8 pt-4 page-enter" key={view + (chapterSel || "") + (subjectSel || "")}>
           {view === "dashboard" && <Dashboard onReview={startReview} go={goTab} openSubject={openSubject} />}
-          {view === "plan" && <PlanView onReview={startReview} go={goTab} onOpenChapter={openChapter} onOpenCalendar={() => { setReviewTab("calendar"); setView("reviews"); }} />}
-          {view === "study" && <StudyView subjectSel={subjectSel} chapterSel={chapterSel} setSubjectSel={setSubjectSel} setChapterSel={setChapterSel} onReview={startReview} go={goTab} onAddCard={(s, c) => openSheet({ name: "card", subjectId: s, chapterId: c })} onAddChapter={(s) => openSheet({ name: "chapter", subjectId: s })} />}
-          {view === "reviews" && (
-            <ReviewsPage
-              tab={reviewTab} setTab={setReviewTab}
-              review={{ queue: reviewQueue, pos: reviewPos, setPos: setReviewPos, setQueue: setReviewQueue, showAnswer, setShowAnswer, filter: reviewFilter, onStartAll: () => startReview(), onGoStudy: () => goTab("study"), onReRead: startReRead }}
+          {view === "plan" && (
+            <PlanPage
+              tab={planTab} setTab={setPlanTab}
+              plan={{ onReview: startReview, go: goTab, onOpenChapter: openChapter }}
               calendar={{ onOpenChapter: openChapter, onReview: startReview, onReRead: startReRead }}
-              go={goTab}
             />
           )}
+          {view === "study" && <StudyView subjectSel={subjectSel} chapterSel={chapterSel} setSubjectSel={setSubjectSel} setChapterSel={setChapterSel} onReview={startReview} go={goTab} onOpenChapter={openChapter} onAddSubject={() => openSheet({ name: "subject" })} onAddCard={(s, c) => openSheet({ name: "card", subjectId: s, chapterId: c })} onAddChapter={(s) => openSheet({ name: "chapter", subjectId: s })} />}
+          {view === "reviews" && (
+            <ReviewsView queue={reviewQueue} pos={reviewPos} setPos={setReviewPos} setQueue={setReviewQueue} showAnswer={showAnswer} setShowAnswer={setShowAnswer} filter={reviewFilter} onStartAll={() => startReview()} onGoStudy={() => goTab("study")} onReRead={startReRead} />
+          )}
           {view === "pomodoro" && <PomodoroView go={goTab} />}
-          {view === "subjects" && <SubjectsView selected={subjectSel} onSelect={setSubjectSel} onOpenChapter={openChapter} onAddSubject={() => openSheet({ name: "subject" })} onAddChapter={(s) => openSheet({ name: "chapter", subjectId: s })} onAddCard={(s, c) => openSheet({ name: "card", subjectId: s, chapterId: c })} />}
-          {view === "stats" && <StatsView />}
-          {view === "profile" && <ProfileView onAddSubject={() => openSheet({ name: "subject" })} onOpenCalendar={() => { setReviewTab("calendar"); setView("reviews"); }} />}
+          {view === "profile" && <ProfileView onAddSubject={() => openSheet({ name: "subject" })} onOpenCalendar={() => { setPlanTab("calendar"); setView("plan"); }} />}
         </main>
       </div>
 

@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { X } from "lucide-react";
+import { BookOpen, Shapes, X } from "lucide-react";
 import { fmtDur, useStudy, type Flashcard } from "@/lib/study-store";
 import type { View } from "./shared";
 import { CardModal } from "./modals";
+import SubjectsView from "./subjects-view";
 
 export function nextLabel(ts: number) {
   const diff = ts - Date.now();
@@ -15,16 +16,19 @@ export function nextLabel(ts: number) {
   return `In ${Math.round(h / 24)}d`;
 }
 
-export default function StudyView({ subjectSel, chapterSel, setSubjectSel, setChapterSel, onReview, go, onAddCard, onAddChapter }: {
+export default function StudyView({ subjectSel, chapterSel, setSubjectSel, setChapterSel, onReview, go, onOpenChapter, onAddSubject, onAddCard, onAddChapter }: {
   subjectSel: string | null; chapterSel: string | null;
   setSubjectSel: (s: string | null) => void; setChapterSel: (c: string | null) => void;
   onReview: (s?: string | null, c?: string | null) => void; go: (v: View) => void;
+  onOpenChapter: (sid: string, cid: string) => void;
+  onAddSubject: () => void;
   onAddCard: (s?: string, c?: string) => void; onAddChapter: (s: string) => void;
 }) {
   const { data, pomoStart, updateChapter, deleteChapter } = useStudy();
   const [editNotes, setEditNotes] = useState(false);
   const [notes, setNotes] = useState("");
   const [notesFor, setNotesFor] = useState<string | null>(null);
+  const [mode, setMode] = useState<"learn" | "manage">("learn");
   if (!data) return null;
   const subj = data.subjects.find((s) => s.id === (subjectSel ?? data.subjects[0]?.id)) ?? data.subjects[0];
   const chapters = data.chapters.filter((c) => c.subjectId === subj?.id);
@@ -42,6 +46,33 @@ export default function StudyView({ subjectSel, chapterSel, setSubjectSel, setCh
 
   return (
     <div className="space-y-6">
+      <div className="inline-flex p-1 rounded-full" style={{ background: "var(--card)", border: "1px solid var(--border)" }} role="tablist" aria-label="Study or manage">
+        <button
+          role="tab" aria-selected={mode === "learn"} onClick={() => setMode("learn")}
+          className={`px-4 py-1.5 rounded-full text-sm font-bold inline-flex items-center gap-1.5 ${mode === "learn" ? "text-white" : ""}`}
+          style={mode === "learn" ? { background: "#7c3aed" } : { color: "var(--ink-2)" }}
+        >
+          <BookOpen size={14} /> Study
+        </button>
+        <button
+          role="tab" aria-selected={mode === "manage"} onClick={() => setMode("manage")}
+          className={`px-4 py-1.5 rounded-full text-sm font-bold inline-flex items-center gap-1.5 ${mode === "manage" ? "text-white" : ""}`}
+          style={mode === "manage" ? { background: "#7c3aed" } : { color: "var(--ink-2)" }}
+        >
+          <Shapes size={14} /> Manage
+        </button>
+      </div>
+      {mode === "manage" ? (
+        <SubjectsView
+          selected={subjectSel}
+          onSelect={(id) => { setSubjectSel(id); setChapterSel(null); }}
+          onOpenChapter={onOpenChapter}
+          onAddSubject={onAddSubject}
+          onAddChapter={onAddChapter}
+          onAddCard={onAddCard}
+        />
+      ) : (
+      <>
       <div className="flex flex-wrap gap-2.5 pb-2 border-b border-border/40">
         {data.subjects.map((s) => (
           <button key={s.id} onClick={() => { setSubjectSel(s.id); setChapterSel(null); }} className={`px-4 py-2 rounded-xl text-sm font-bold transition-all shadow-2xs ${s.id === subj.id ? "text-white shadow-md scale-102" : "hover:bg-secondary/80"}`} style={s.id === subj.id ? { background: "#7c3aed" } : { border: "1px solid var(--border)", color: "var(--ink)" }}>{s.name}</button>
@@ -143,6 +174,8 @@ export default function StudyView({ subjectSel, chapterSel, setSubjectSel, setCh
             </div>
           </section>
         </div>
+      )}
+      </>
       )}
     </div>
   );

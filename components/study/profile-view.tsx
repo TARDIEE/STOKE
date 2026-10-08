@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Crown, Flame, LogOut, Target, Trash2 } from "lucide-react";
 import { fmtDur, useDerived, useStudy } from "@/lib/study-store";
 import SettingsView from "./settings-view";
+import StatsView from "./stats-view";
 import { PremiumLockPanel } from "./premium-gate";
 
 /** Student profile: identity + lifetime stats on top, all settings below. */
@@ -102,6 +103,10 @@ export default function ProfileView({ onAddSubject, onOpenCalendar }: {
         ) : (
           <PremiumLockPanel />
         )}
+      </div>
+
+      <div className="mt-6">
+        <StatsView />
       </div>
 
       <h2 className="font-bold text-lg mt-6">Settings</h2>
