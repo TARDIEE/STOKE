@@ -107,7 +107,12 @@ export async function POST(req: Request) {
       })),
     ]);
     return NextResponse.json({ ok: true, model: aiModelName(), questions: await listDay(user.id, day) });
-  } catch {
-    return NextResponse.json({ error: "Could not reach the AI service. Check your connection and try again." }, { status: 502 });
+  } catch (e) {
+    const detail = e instanceof Error ? e.message : "";
+    console.error(`[ai] day questions failed: ${detail}`);
+    return NextResponse.json({
+      error: "Could not reach the AI service. Check your connection and try again.",
+      detail: detail.slice(0, 300),
+    }, { status: 502 });
   }
 }

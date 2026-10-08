@@ -35,9 +35,12 @@ export async function POST(req: Request) {
       const cards = (await generateCardsOpen(topic, count, chapter?.name, notes)).slice(0, count);
       if (!cards.length) return NextResponse.json({ error: "The AI returned nothing usable — try again." }, { status: 502 });
       return NextResponse.json({ ok: true, model: "open", cards });
-    } catch {
+    } catch (e) {
+      const detail = e instanceof Error ? e.message : "";
+      console.error(`[ai] flashcards open fallback failed: ${detail}`);
       return NextResponse.json({
         error: "AI is busy right now — try again in a bit, or paste a free Groq key in Settings → AI generation for priority access.",
+        detail: detail.slice(0, 300),
       }, { status: 502 });
     }
   }
@@ -48,7 +51,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, model: aiModelName(), cards });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "";
-    if (msg.includes("AI service error")) {
+    console.error(`[ai] flashcards groq failed: ${msg}`);
+    if (/AI service error|Open AI service error/i.test(msg)) {
       return NextResponse.json({ error: `${msg} Check your key in Settings → AI generation.` }, { status: 502 });
     }
     return NextResponse.json({ error: "Could not reach the AI service. Check your connection and try again." }, { status: 502 });

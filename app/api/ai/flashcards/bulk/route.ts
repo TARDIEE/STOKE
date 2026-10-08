@@ -57,7 +57,8 @@ export async function POST(req: Request) {
         cards.push({ ...c });
       }
       return true;
-    } catch {
+    } catch (e) {
+      console.error(`[ai] bulk topic "${label}" failed: ${e instanceof Error ? e.message : e}`);
       failedTopics.push(label);
       return false;
     }

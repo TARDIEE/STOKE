@@ -84,7 +84,8 @@ function AiGenerator({ topicDefault, chapterId, sourceNotes, onAdd }: {
       });
       const body = await res.json();
       if (!res.ok) {
-        if (res.status === 501 || (res.status === 502 && /busy/i.test(String(body?.error ?? "")))) setNeedKey(true);
+        const errText = String(body?.error ?? "");
+        if (res.status === 501 || /busy|check your key|invalid|AI service error/i.test(errText)) setNeedKey(true);
         throw new Error(body?.error || "Generation failed.");
       }
       setNeedKey(false);
