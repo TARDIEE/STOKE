@@ -290,7 +290,7 @@ export async function ensureTodayPlan(userId: string, now: number, force = false
         if (inQuorum() >= MAX_PER_QUADRANT) break;
         // Don't duplicate a chapter already picked in a higher zone (same subtopic slice).
         if (c.refId && picked.some((p) => p.refId === c.refId && p.kind === c.kind && p.topic === c.topic)) continue;
-        if (onePerSubject && c.refSubject && picked.some((p) => p.quadrant === q && p.refSubject === c.refSubject)) continue;
+        if (onePerSubject && picked.some((p) => p.quadrant === q && (p.refSubject || "") === (c.refSubject || ""))) continue;
         picked.push(c);
       }
     };
