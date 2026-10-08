@@ -374,7 +374,7 @@ function Topbar({ onSearch, onAdd, setView, onBack, showBack }: { onSearch: () =
     return () => window.removeEventListener("keydown", fn);
   }, [onSearch]);
   return (
-    <header className="sticky top-0 z-10 px-4 md:px-8 py-3 flex items-center gap-2" style={{ background: "color-mix(in srgb, var(--bg) 88%, transparent)", backdropFilter: "blur(10px)", borderBottom: "1px solid var(--border)" }}>
+    <header className="sticky top-0 z-10 px-4 md:px-8 py-3 flex items-center gap-2" style={{ background: "color-mix(in srgb, var(--bg) 88%, transparent)", backdropFilter: "blur(10px)", borderBottom: "1px solid var(--border)", paddingTop: "max(0.75rem, env(safe-area-inset-top))" }}>
       {showBack && (
         <button onClick={onBack} className="md:hidden w-9 h-9 -ml-1 rounded-full grid place-items-center" style={{ color: "var(--ink)" }} aria-label="Back">
           <ChevronLeft size={22} />
