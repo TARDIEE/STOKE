@@ -276,17 +276,26 @@ export async function ensureTodayPlan(userId: string, now: number, force = false
     });
   }
 
-  // Max 3 per quadrant → 12 total. Highest score wins each zone.
+  // Max 3 per quadrant → 12 total. Highest score wins each zone, but one
+  // chapter's subtopic slices must not crowd out other subjects: first pass
+  // takes at most one task per subject per quadrant (round-robin by score),
+  // second pass fills leftover slots with the next-best tasks.
   const picked: Cand[] = [];
   (["q1", "q2", "q3", "q4"] as Quadrant[]).forEach((q) => {
     const inQ = cands.filter((c) => c.quadrant === q).sort((a, b) => b.score - a.score);
-    // Don't duplicate a chapter already picked in a higher zone (same subtopic slice).
-    for (const c of inQ) {
-      if (picked.length >= 12) break;
-      if (picked.filter((p) => p.quadrant === q).length >= MAX_PER_QUADRANT) break;
-      if (c.refId && picked.some((p) => p.refId === c.refId && p.kind === c.kind && p.topic === c.topic)) continue;
-      picked.push(c);
-    }
+    const inQuorum = () => picked.filter((p) => p.quadrant === q).length;
+    const take = (onePerSubject: boolean) => {
+      for (const c of inQ) {
+        if (picked.length >= 12) break;
+        if (inQuorum() >= MAX_PER_QUADRANT) break;
+        // Don't duplicate a chapter already picked in a higher zone (same subtopic slice).
+        if (c.refId && picked.some((p) => p.refId === c.refId && p.kind === c.kind && p.topic === c.topic)) continue;
+        if (onePerSubject && c.refSubject && picked.some((p) => p.quadrant === q && p.refSubject === c.refSubject)) continue;
+        picked.push(c);
+      }
+    };
+    take(true);
+    take(false);
   });
 
   const base = Date.now();
