@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { CalendarDays, Check, Circle, Layers, Shapes, Sparkles, Timer, Zap } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { CalendarDays, Check, Circle, Layers, Shapes, Sparkles, Timer, Zap, BookOpen, X } from "lucide-react";
 import { requestNotificationPermission, useStudy, type Flashcard } from "@/lib/study-store";
+import { extractBookText, type BookText } from "@/lib/pdf-book";
 import { Modal, type View } from "./shared";
 import { PremiumLockPanel } from "./premium-gate";
 
@@ -72,6 +73,24 @@ function AiGenerator({ topicDefault, chapterId, sourceNotes, onAdd }: {
   const [needKey, setNeedKey] = useState(false);
   const [key, setKey] = useState("");
   const [savingKey, setSavingKey] = useState(false);
+  // Book PDF: read in-browser, sent to the AI as source text.
+  const [book, setBook] = useState<BookText | null>(null);
+  const [readingBook, setReadingBook] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const pickBook = async (f: File | undefined) => {
+    if (!f) return;
+    setReadingBook(true);
+    try {
+      const b = await extractBookText(f);
+      setBook(b);
+      pushToast({ title: "Book attached", body: `${b.name} · ${b.pages} pages read.` });
+    } catch (e) {
+      pushToast({ title: "Couldn't read that PDF", body: e instanceof Error ? e.message : undefined });
+    }
+    setReadingBook(false);
+    if (fileRef.current) fileRef.current.value = "";
+  };
 
   const generate = async (fromNotes = false) => {
     if (!topic.trim()) { pushToast({ title: "Describe the topic first" }); return; }
@@ -80,7 +99,7 @@ function AiGenerator({ topicDefault, chapterId, sourceNotes, onAdd }: {
     try {
       const res = await fetch("/api/ai/flashcards", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ topic: topic.trim(), count, chapterId, notes: fromNotes ? sourceNotes : undefined }),
+        body: JSON.stringify({ topic: topic.trim(), count, chapterId, notes: book?.text ?? (fromNotes ? sourceNotes : undefined) }),
       });
       const body = await res.json();
       if (!res.ok) {
@@ -159,6 +178,19 @@ function AiGenerator({ topicDefault, chapterId, sourceNotes, onAdd }: {
               {busy ? "Reading notes…" : "Generate from my chapter notes instead"}
             </button>
           ) : null}
+          <input ref={fileRef} type="file" accept=".pdf,application/pdf" className="hidden" aria-label="Upload book PDF"
+            onChange={(e) => pickBook(e.target.files?.[0])} />
+          {book ? (
+            <div className="w-full mt-2 px-3 py-2 rounded-xl text-xs flex items-center gap-2" style={{ background: "var(--primary-bg)", color: "#6D28D9" }}>
+              <BookOpen size={14} className="shrink-0" />
+              <span className="min-w-0 flex-1 truncate font-bold">{book.name} · {book.pages} pages</span>
+              <button onClick={() => setBook(null)} className="shrink-0 p-0.5 rounded" aria-label="Remove book"><X size={14} /></button>
+            </div>
+          ) : (
+            <button onClick={() => fileRef.current?.click()} disabled={busy || readingBook} className="w-full mt-2 px-3 py-2 rounded-xl text-xs font-bold disabled:opacity-50 flex items-center justify-center gap-1.5" style={{ border: "1px dashed var(--border)", color: "var(--ink-2)" }}>
+              <BookOpen size={14} /> {readingBook ? "Reading book…" : "Upload book PDF — AI reads it to ask questions"}
+            </button>
+          )}
           {suggestions.length > 0 && (
             <div className="mt-2 flex flex-col gap-1.5 max-h-56 overflow-auto">
               {suggestions.map((c, i) => (

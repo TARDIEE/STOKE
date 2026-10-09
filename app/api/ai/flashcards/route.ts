@@ -12,7 +12,7 @@ export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
   const topic = String(body?.topic ?? "").trim();
   const count = Math.max(1, Math.min(10, Number(body?.count ?? 5)));
-  const notes = String(body?.notes ?? "").slice(0, 4000);
+  const notes = String(body?.notes ?? "").slice(0, 12000);
   if (!topic) return NextResponse.json({ error: "Describe the topic first." }, { status: 400 });
 
   if (!(await isPremium(user.id))) {

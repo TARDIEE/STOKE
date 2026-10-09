@@ -47,18 +47,29 @@ export async function getAiKey(userId: string, db: DbIface): Promise<string> {
   return (row?.ai_key || process.env.GROQ_API_KEY || "").trim();
 }
 
+const GROQ_SOURCE_MAX = 6000;
+
+const EXAMINER_SYSTEM =
+  "You are an expert examiner writing flashcards that test real understanding. " +
+  'Reply with ONLY a JSON object shaped {"cards": [{"front": "question", "back": "concise answer"}]}. No markdown, no extra text. ' +
+  "Rules: mix Bloom levels — key facts, WHY/HOW mechanisms, and application to a new scenario or number; " +
+  "one card must target a common misconception or tricky edge case; " +
+  "never yes/no questions and never vague 'What is X?' — demand the distinguishing detail; " +
+  "no two cards may test the same fact; " +
+  "fronts under 140 characters, backs under 300 characters with the exact answer plus its one-line reason.";
+
+const EXAMINER_ASK =
+  "Ask exam-grade questions — specific, tricky, and varied across the whole source, not just its opening.";
+
 export async function generateCards(topic: string, count: number, key: string, chapterName?: string, notes?: string): Promise<AiCard[]> {
   const source = notes?.trim()
-    ? ` Base the cards ONLY on the following study notes — do not add facts outside them: """${notes.trim().slice(0, 2000)}"""`
+    ? ` Base the cards ONLY on the following source — do not add facts outside it: """${notes.trim().slice(0, GROQ_SOURCE_MAX)}"""`
     : "";
   const messages = [
-    {
-      role: "system",
-      content: "You create study flashcards. Reply with ONLY a JSON object shaped {\"cards\": [{\"front\": \"question\", \"back\": \"concise answer\"}]}. No markdown, no extra text.",
-    },
+    { role: "system", content: EXAMINER_SYSTEM },
     {
       role: "user",
-      content: `Create ${count} flashcards for studying "${topic}"${chapterName ? ` (chapter: ${chapterName})` : ""}. Mix definitions, key formulas/facts, and one application question. Keep fronts under 140 characters and backs under 300 characters.${source}`,
+      content: `Create ${count} flashcards for studying "${topic}"${chapterName ? ` (chapter: ${chapterName})` : ""}. ${EXAMINER_ASK} Keep fronts under 140 characters and backs under 300 characters.${source}`,
     },
   ];
   // Reasoning models (e.g. gpt-oss) reject some sampling/structural params
@@ -120,7 +131,8 @@ export async function generateCardsOpen(topic: string, count: number, chapterNam
     : "";
   const base =
     `Create ${count} flashcards for studying "${topic}"${chapterName ? ` (chapter: ${chapterName})` : ""}. ` +
-    `Mix definitions, key formulas/facts, and one application question. Keep fronts under 140 characters and backs under 300 characters.`;
+    `Ask exam-grade questions: key facts, WHY/HOW mechanisms, one application, one common misconception. ` +
+    `Never yes/no, never vague. No two cards on the same fact. Keep fronts under 140 characters and backs under 300 characters.`;
   const tail = ` Do not ask clarifying questions. Output ONLY a JSON object shaped {"cards": [{"front": "question", "back": "concise answer"}]}. No markdown, no extra text.`;
   // Full prompt first, then without notes (short URLs survive strict gateways).
   const prompts = [base + source + tail, base + tail];
@@ -153,7 +165,7 @@ export async function generateCardsOpen(topic: string, count: number, chapterNam
 /** Authenticated Pollinations (gen.pollinations.ai, OpenAI-compatible). */
 async function generateCardsViaPollinations(topic: string, count: number, chapterName?: string, notes?: string): Promise<AiCard[]> {
   const source = notes?.trim()
-    ? ` Base the cards ONLY on the following study notes — do not add facts outside them: """${notes.trim().slice(0, 2000)}"""`
+    ? ` Base the cards ONLY on the following source — do not add facts outside it: """${notes.trim().slice(0, GROQ_SOURCE_MAX)}"""`
     : "";
   const res = await fetch("https://gen.pollinations.ai/v1/chat/completions", {
     method: "POST",
@@ -167,13 +179,10 @@ async function generateCardsViaPollinations(topic: string, count: number, chapte
       max_tokens: 2200,
       response_format: { type: "json_object" },
       messages: [
-        {
-          role: "system",
-          content: "You create study flashcards. Reply with ONLY a JSON object shaped {\"cards\": [{\"front\": \"question\", \"back\": \"concise answer\"}]}. No markdown, no extra text.",
-        },
+        { role: "system", content: EXAMINER_SYSTEM },
         {
           role: "user",
-          content: `Create ${count} flashcards for studying "${topic}"${chapterName ? ` (chapter: ${chapterName})` : ""}. Mix definitions, key formulas/facts, and one application question. Keep fronts under 140 characters and backs under 300 characters.${source}`,
+          content: `Create ${count} flashcards for studying "${topic}"${chapterName ? ` (chapter: ${chapterName})` : ""}. ${EXAMINER_ASK} Keep fronts under 140 characters and backs under 300 characters.${source}`,
         },
       ],
     }),
