@@ -182,7 +182,7 @@ export default function PlanView({ onReview, go, onOpenChapter, onOpenCalendar }
           <div className="text-lg font-bold">Nothing scheduled — enjoy the clear day!</div>
           <div className="text-sm max-w-sm mx-auto" style={{ color: "var(--ink-2)" }}>Add a custom task below or start learning something new.</div>
           <div className="flex justify-center gap-3 pt-2 flex-wrap">
-            <button onClick={() => go("subjects")} className="btn-primary px-5 py-2.5 text-sm font-bold">Browse subjects</button>
+            <button onClick={() => go("study")} className="btn-primary px-5 py-2.5 text-sm font-bold">Browse subjects</button>
             <button onClick={onOpenCalendar} className="px-5 py-2.5 text-sm font-semibold rounded-xl transition-colors hover:bg-secondary/80" style={{ border: "1px solid var(--border)" }}>Open calendar</button>
           </div>
         </div>
