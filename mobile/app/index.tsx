@@ -6,7 +6,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import Constants from "expo-constants";
 import { WebView } from "react-native-webview";
 
-const FALLBACK_URL = "http://192.168.18.111:3000";
+const FALLBACK_URL = "http://192.168.18.31:3000";
 
 function webAppUrl(): string {
   const extra = (Constants.expoConfig?.extra ?? {}) as Record<string, unknown>;
