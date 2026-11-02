@@ -15,7 +15,7 @@ function webAppUrl(): string {
 
 export default function Home() {
   const uri = webAppUrl();
-  const webview = useRef<WebView>(null);
+  const webview = useRef<any>(null);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
